@@ -1,21 +1,36 @@
-// 用途：工作台主界面：顶部店铺切换器、左侧对话列表、中部流式对话区（快捷指令、工具状态卡）、右下角 Agent 抽屉入口。
+// 用途：工作台主界面：顶部店铺切换器、左侧对话列表、中部对话区（流式回复、工具状态卡、快捷指令）、右下角 Agent 抽屉入口。
 "use client";
 
+import { useEffect, useState } from "react";
 import AppShell from "@/components/layout/app-shell";
+import Sidebar from "@/components/layout/sidebar";
+import ChatPanel from "@/components/chat/chat-panel";
+import ShopOverviewCard from "@/components/shop/shop-overview-card";
 import { useShops } from "@/components/shop/shop-context";
 
 export default function WorkspacePage() {
-  const { shops, currentShopId } = useShops();
-  const current = shops.find((shop) => shop.id === currentShopId) ?? null;
+  const { currentShopId } = useShops();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [refreshSignal, setRefreshSignal] = useState(0);
+
+  // 切换店铺后清空对话选中：旧店铺的对话在新店铺上下文中不可用（隔离铁律）。
+  useEffect(() => {
+    setSelectedId(null);
+  }, [currentShopId]);
 
   return (
-    <AppShell withSidebar>
-      <div className="flex h-full flex-col items-center justify-center px-6 text-center">
-        <h1 className="text-lg font-semibold text-gray-900">
-          {current ? `当前店铺：${current.name}（${current.market}）` : "尚无当前店铺"}
-        </h1>
-        <p className="mt-2 text-sm text-gray-500">AI 对话中枢是下一个功能，届时 Agent 将在这里自动打招呼。</p>
-      </div>
+    <AppShell
+      sidebar={
+        <Sidebar activeId={selectedId} onSelect={setSelectedId} refreshSignal={refreshSignal} />
+      }
+    >
+      {selectedId ? (
+        <ChatPanel conversationId={selectedId} onTurnComplete={() => setRefreshSignal((count) => count + 1)} />
+      ) : (
+        <div className="flex h-full items-center justify-center overflow-y-auto px-6 py-10">
+          <ShopOverviewCard />
+        </div>
+      )}
     </AppShell>
   );
 }

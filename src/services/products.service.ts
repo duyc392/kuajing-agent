@@ -2,6 +2,7 @@
 import type { Product, ProductCopy, ProductVariant } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { NotFoundError } from "@/lib/errors";
+import { getShop } from "@/services/shops.service";
 import type { ProductCreateInput, ProductQuery, ProductUpdateInput } from "@/types";
 
 const includeRelations = {
@@ -15,6 +16,7 @@ export type ProductWithRelations = Product & {
 };
 
 export async function listProducts(shopId: string): Promise<ProductWithRelations[]> {
+  await getShop(shopId);
   return prisma.product.findMany({ where: { shopId }, include: includeRelations, orderBy: { createdAt: "asc" } });
 }
 

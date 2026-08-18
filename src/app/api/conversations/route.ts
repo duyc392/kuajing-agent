@@ -5,14 +5,15 @@ import { ValidationError } from "@/lib/errors";
 import { createConversation, listConversations } from "@/services/conversations.service";
 
 const createSchema = z.object({
-  shopId: z.string({ required_error: "缺少 shopId" }).min(1, "缺少 shopId"),
-  title: z.string().trim().min(1, "对话标题不能为空").optional(),
+  shopId: z.string({ required_error: "缺少 shopId" }).min(1, "缺少 shopId").max(128, "shopId 无效"),
+  title: z.string().trim().min(1, "对话标题不能为空").max(100, "对话标题过长（上限 100 字）").optional(),
 });
 
 export async function GET(request: Request) {
   try {
     const shopId = new URL(request.url).searchParams.get("shopId") ?? "";
     if (shopId === "") throw new ValidationError("缺少 shopId");
+    if (shopId.length > 128) throw new ValidationError("shopId 无效");
     return Response.json(await listConversations(shopId));
   } catch (error) {
     return toErrorResponse(error);

@@ -9,3 +9,6 @@ export interface ConversationCreateInput {
   shopId: string;
   title?: string;
 }
+
+// 唯一默认对话标题：新建对话与"首条消息自动命名"的判断共用这一个常量，防止两处字面量漂移。
+export const DEFAULT_CONVERSATION_TITLE = "新对话";

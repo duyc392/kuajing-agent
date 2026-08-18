@@ -3,7 +3,6 @@
 
 import type { ReactNode } from "react";
 import Header from "@/components/layout/header";
-import Sidebar from "@/components/layout/sidebar";
 import AgentDrawer from "@/components/chat/agent-drawer";
 import Loading from "@/components/shared/loading";
 import ErrorMessage from "@/components/shared/error-message";
@@ -11,10 +10,10 @@ import { useShops } from "@/components/shop/shop-context";
 
 interface AppShellProps {
   children: ReactNode;
-  withSidebar?: boolean;
+  sidebar?: ReactNode;
 }
 
-export default function AppShell({ children, withSidebar = false }: AppShellProps) {
+export default function AppShell({ children, sidebar }: AppShellProps) {
   const { loading, error, refresh } = useShops();
 
   if (error) {
@@ -39,7 +38,7 @@ export default function AppShell({ children, withSidebar = false }: AppShellProp
     <div className="flex h-screen flex-col bg-gray-50">
       <Header />
       <div className="flex min-h-0 flex-1">
-        {withSidebar && <Sidebar />}
+        {sidebar}
         <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>
       </div>
       <AgentDrawer />

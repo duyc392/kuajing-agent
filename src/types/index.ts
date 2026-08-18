@@ -3,3 +3,4 @@ export * from "./shop";
 export * from "./product";
 export * from "./keys";
 export * from "./conversation";
+export * from "./message";
