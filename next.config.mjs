@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  poweredByHeader: false,
   // 基础安全响应头：防点击劫持、禁 Referrer 泄露、禁 MIME 嗅探（单机工具不引入严格 CSP，避免破坏开发热更新）
   async headers() {
     return [

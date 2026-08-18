@@ -2,9 +2,10 @@
 // 业务编排在 Agent 层（prepareUserTurn / runAgentReply），本层只做参数校验与 SSE 帧封装。
 import { z } from "zod";
 import { toErrorResponse } from "@/lib/api-error";
+import { readJsonBody } from "@/lib/read-body";
 import { ValidationError } from "@/lib/errors";
 import { listMessages } from "@/services/messages.service";
-import { prepareUserTurn, runAgentReply } from "@/agent/chat";
+import { prepareUserTurn, releaseTurn, runAgentReply } from "@/agent/chat";
 import type { ChatStreamEvent, MessageView } from "@/types";
 
 const idSchema = z.string({ required_error: "缺少对话 ID" }).min(1, "缺少对话 ID").max(128, "对话 ID 无效");
@@ -34,7 +35,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   let shopId = "";
   let content = "";
   try {
-    const input = sendSchema.parse(await request.json());
+    const input = sendSchema.parse(await readJsonBody(request));
     conversationId = idSchema.parse(params.id);
     shopId = input.shopId;
     content = input.content;
@@ -50,11 +51,23 @@ export async function POST(request: Request, { params }: { params: { id: string 
     return toErrorResponse(error);
   }
 
+  // 客户端断开时释放回合锁，防止后续消息被 429 卡死。
+  request.signal.addEventListener("abort", () => releaseTurn(conversationId));
+
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      const send = (event: ChatStreamEvent) =>
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+      let closed = false;
+      const send = (event: ChatStreamEvent) => {
+        if (closed) return;
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}
+
+`));
+        } catch {
+          closed = true;
+        }
+      };
       send({ type: "user", message: userMessageView });
       try {
         const agentMessage = await runAgentReply({
@@ -68,7 +81,12 @@ export async function POST(request: Request, { params }: { params: { id: string 
       } catch (error) {
         send({ type: "error", error: error instanceof Error ? error.message : "Agent 回复失败，请重试" });
       } finally {
-        controller.close();
+        closed = true;
+        try {
+          controller.close();
+        } catch {
+          // 流已被取消，无需处理。
+        }
       }
     },
   });

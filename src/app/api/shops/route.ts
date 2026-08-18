@@ -1,18 +1,19 @@
 // 用途：店铺列表与创建接口：GET 返回店铺列表（默认不含已归档），POST 校验参数后创建店铺。
 import { z } from "zod";
 import { toErrorResponse } from "@/lib/api-error";
+import { readJsonBody } from "@/lib/read-body";
 import { isKnownMarket } from "@/lib/markets";
 import { createShop, listShops } from "@/services/shops.service";
 
 const MARKET_ERROR = "目标市场不在支持列表中，请从下拉列表选择";
 
 const createSchema = z.object({
-  name: z.string({ required_error: "店铺名称不能为空" }).trim().min(1, "店铺名称不能为空"),
+  name: z.string({ required_error: "店铺名称不能为空" }).trim().min(1, "店铺名称不能为空").max(100, "店铺名称过长（上限 100 字）"),
   market: z
     .string({ required_error: "目标市场不能为空" })
     .trim()
     .refine(isKnownMarket, MARKET_ERROR),
-  description: z.string().nullable().optional(),
+  description: z.string().max(2000, "店铺简述过长（上限 2000 字）").nullable().optional(),
 });
 
 export async function GET(request: Request) {
@@ -26,7 +27,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const input = createSchema.parse(await request.json());
+    const input = createSchema.parse(await readJsonBody(request));
     return Response.json(await createShop(input), { status: 201 });
   } catch (error) {
     return toErrorResponse(error);

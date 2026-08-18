@@ -67,7 +67,14 @@ export async function runAgentTurn(params: RunAgentTurnParams): Promise<string> 
       params.onDelta?.(event.assistantMessageEvent.delta);
     }
   });
-  await agent.prompt(params.content);
+  // 硬超时：模型调用超过 60 秒直接报错返回，不再无限等待（PRD 未规定上限，60 秒足够正常回复）。
+  const TIMEOUT_MS = 60_000;
+  await Promise.race([
+    agent.prompt(params.content),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new AppError("AI 服务响应超时，请稍后重试", "LLM_TIMEOUT", 502)), TIMEOUT_MS),
+    ),
+  ]);
   const finalMessage = [...agent.state.messages].reverse().find((message) => message.role === "assistant");
   if (finalMessage && finalMessage.role === "assistant" && finalMessage.stopReason === "error") {
     // 原始错误只进服务端日志；前端只收到中文话术（PRD：断网显示"无法连接 AI 服务"），不透传服务商英文细节。

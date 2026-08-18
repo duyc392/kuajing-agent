@@ -4,6 +4,9 @@ REM 一键启动脚本：检测 Node.js → 首次运行安装依赖 → 初始�
 cd /d "%~dp0"
 
 if not exist logs mkdir logs
+if not exist data mkdir data
+REM 安全加固：data 目录存放 API Key 与数据库，移除继承权限，仅保留当前用户、SYSTEM、Administrators（防同机其他账号读取）。
+icacls data /inheritance:r /grant:r "%USERNAME%:(OI)(CI)F" "SYSTEM:(OI)(CI)F" "Administrators:(OI)(CI)F" >nul 2>nul
 echo [%date% %time%] 脚本开始执行 > logs\bat.log
 
 where node >nul 2>nul

@@ -2,7 +2,10 @@
 # 一键启动脚本：检测 Node.js → 首次运行安装依赖 → 初始化数据库 → 启动服务 → 等待就绪 → 打开浏览器
 cd "$(dirname "$0")"
 
-mkdir -p logs
+mkdir -p logs data
+# 安全加固：data 目录存放 API Key 与数据库，仅当前用户可读写（防止同机其他账号读取）。
+chmod 700 data 2>/dev/null
+chmod 600 data/config.json data/kuajing.db 2>/dev/null
 
 if ! command -v node >/dev/null 2>&1; then
   echo "[错误] 未检测到 Node.js，请先安装：https://nodejs.org/zh-cn"

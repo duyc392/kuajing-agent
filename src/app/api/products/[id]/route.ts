@@ -1,6 +1,7 @@
 // 用途：单个商品接口：按 id + shopId 查询、更新、删除（shopId 必传，跨店铺访问返回 404，保证隔离）。
 import { z } from "zod";
 import { toErrorResponse } from "@/lib/api-error";
+import { readJsonBody } from "@/lib/read-body";
 import { ValidationError } from "@/lib/errors";
 import { deleteProduct, getProduct, updateProduct } from "@/services/products.service";
 
@@ -28,7 +29,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   try {
-    const input = updateSchema.parse(await request.json());
+    const input = updateSchema.parse(await readJsonBody(request));
     return Response.json(await updateProduct(buildQuery(request, params.id), input));
   } catch (error) {
     return toErrorResponse(error);

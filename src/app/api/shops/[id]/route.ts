@@ -1,6 +1,7 @@
 // 用途：单个店铺接口：按 id 查询、编辑、归档（归档代替删除，对应 PRD 店铺管理用户故事）。
 import { z } from "zod";
 import { toErrorResponse } from "@/lib/api-error";
+import { readJsonBody } from "@/lib/read-body";
 import { isKnownMarket } from "@/lib/markets";
 import { archiveShop, getShop, updateShop } from "@/services/shops.service";
 
@@ -23,7 +24,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   try {
-    const input = updateSchema.parse(await request.json());
+    const input = updateSchema.parse(await readJsonBody(request));
     return Response.json(await updateShop(params.id, input));
   } catch (error) {
     return toErrorResponse(error);

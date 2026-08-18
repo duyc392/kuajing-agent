@@ -1,6 +1,7 @@
 // 用途：对话接口：GET 按 shopId 查询对话列表（时间倒序），POST 在指定店铺下新建对话；shopId 必填，店铺不存在返回 404。
 import { z } from "zod";
 import { toErrorResponse } from "@/lib/api-error";
+import { readJsonBody } from "@/lib/read-body";
 import { ValidationError } from "@/lib/errors";
 import { createConversation, listConversations } from "@/services/conversations.service";
 
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const input = createSchema.parse(await request.json());
+    const input = createSchema.parse(await readJsonBody(request));
     return Response.json(await createConversation(input), { status: 201 });
   } catch (error) {
     return toErrorResponse(error);

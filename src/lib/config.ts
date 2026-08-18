@@ -23,11 +23,9 @@ export async function readKeysConfig(): Promise<KeysConfig> {
     raw = await fs.readFile(getConfigPath(), "utf-8");
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return buildDefaults();
-    throw new AppError(
-      `配置文件无法读取：${error instanceof Error ? error.message : "未知错误"}`,
-      "CONFIG_READ_ERROR",
-      500,
-    );
+    // 原始错误只进服务端日志，前端只收到固定中文提示（不泄露磁盘路径等系统细节）。
+    console.error("[config] 配置文件读取失败:", error);
+    throw new AppError("配置文件无法读取，请检查 data/config.json 是否存在且可访问。", "CONFIG_READ_ERROR", 500);
   }
   let parsed: Partial<KeysConfig>;
   try {
@@ -48,14 +46,16 @@ export async function readKeysConfig(): Promise<KeysConfig> {
 }
 
 export async function writeKeysConfig(config: KeysConfig): Promise<void> {
+  const filePath = getConfigPath();
+  const tmpPath = `${filePath}.tmp`;
   try {
-    await fs.mkdir(path.dirname(getConfigPath()), { recursive: true });
-    await fs.writeFile(getConfigPath(), JSON.stringify(config, null, 2), "utf-8");
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    // 原子写：先写临时文件再改名覆盖，进程中断也不会留下半截 JSON。
+    await fs.writeFile(tmpPath, JSON.stringify(config, null, 2), "utf-8");
+    await fs.chmod(tmpPath, 0o600).catch(() => undefined);
+    await fs.rename(tmpPath, filePath);
   } catch (error) {
-    throw new AppError(
-      `配置文件写入失败：${error instanceof Error ? error.message : "未知错误"}`,
-      "CONFIG_WRITE_ERROR",
-      500,
-    );
+    console.error("[config] 配置文件写入失败:", error);
+    throw new AppError("配置文件写入失败，请检查 data 目录是否可写。", "CONFIG_WRITE_ERROR", 500);
   }
 }
