@@ -1,0 +1,170 @@
+// 数据模型：对应 PRD 第三层"数据对象描述"，所有业务对象以 shopId 为隔离键，没有用户对象；Agent 技能的内容存于 skills/ 目录的 .md 文件，其启用状态存于 Skill 表。
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 店铺：系统的隔离单元，所有业务数据都归属某个店铺。
+model Shop {
+  id          String   @id @default(cuid())
+  name        String
+  market      String // 目标市场，如"美国"、"东南亚-印尼"
+  description String? // 店铺简述
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  products      Product[]
+  videoScripts  VideoScript[]
+  liveScripts   LiveScript[]
+  conversations Conversation[]
+  memories      MemoryEntry[]
+  generations   Generation[]
+}
+
+// 商品：属于某个店铺，支持变体。
+model Product {
+  id          String   @id @default(cuid())
+  shopId      String
+  shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  name        String
+  category    String? // 类目
+  price       Float? // 基础价格
+  description String? // 商品描述
+  skuRule     String? // Agent 建议的 SKU 编码规则，如 "MZ-{颜色}-{尺寸}"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  copies    ProductCopy[]
+  variants  ProductVariant[]
+  images    ProductImage[]
+}
+
+// 商品变体：颜色、尺寸等组合，每个变体有 SKU 编码。
+model ProductVariant {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku       String
+  color     String?
+  size      String?
+  price     Float? // 变体价格，缺省时用商品基础价格
+  stock     Int? // 库存数量
+  createdAt DateTime @default(now())
+}
+
+// 商品图片：图片文件本体存在 public/generated/ 目录，这里记录图片的路径、用途和应用状态。
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  path      String // 图片文件在磁盘上的相对路径，如 /generated/abc123.png
+  type      String // 用途："main"（主图）/ "detail"（详情图）/ "variant"（变体）
+  prompt    String? // 生成这张图时使用的提示词
+  applied   Boolean  @default(false) // 是否已应用到商品（false 草稿 / true 已应用）
+  sortOrder Int      @default(0) // 详情图序列中的显示顺序
+  createdAt DateTime @default(now())
+}
+
+// 文案版本：一次 AI 生成或一次人工修改产生一个版本。
+model ProductCopy {
+  id            String   @id @default(cuid())
+  productId     String
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  title         String
+  description   String
+  sellingPoints String?
+  language      String // 目标市场语言，如 "en"、"id"
+  version       Int // 版本号，同一商品递增
+  source        String // 来源："ai" 或 "human"
+  isCurrent     Boolean  @default(false) // 是否为商品当前应用的版本
+  createdAt     DateTime @default(now())
+}
+
+// 视频脚本：分镜内容、钩子、CTA；shots 存 JSON 文本（SQLite 不支持 Json 类型）。
+model VideoScript {
+  id        String   @id @default(cuid())
+  shopId    String
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  productId String? // 可关联某个商品
+  type      String // 开箱 / 教程 / 种草 / 对比
+  duration  Int // 时长（秒）
+  hook      String // 前 3 秒钩子文案
+  cta       String // 结尾行动号召
+  style     String? // 模仿的参考风格描述
+  shots     String // 分镜内容，JSON 文本
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 直播脚本：时长、商品列表、流程节点。
+model LiveScript {
+  id          String   @id @default(cuid())
+  shopId      String
+  shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  duration    Int // 时长（秒）
+  productList String // 商品列表
+  flow        String // 流程节点：开场、讲解顺序、互动、促销节奏
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// 对话：属于某个店铺的一次连续对话。
+model Conversation {
+  id        String    @id @default(cuid())
+  shopId    String
+  shop      Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  title     String
+  messages  Message[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+// 消息：属于某个对话，角色为用户或 Agent。
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String // "user" 或 "agent"
+  content        String
+  toolCalls      String? // 工具调用过程，JSON 文本
+  createdAt      DateTime     @default(now())
+}
+
+// 记忆条目：店铺画像与用户偏好，分类存储，可编辑删除。
+model MemoryEntry {
+  id        String   @id @default(cuid())
+  shopId    String
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  category  String // 如"店铺定位"、"内容偏好"
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 生成审计：每次 AI 调用留一条记录。
+model Generation {
+  id        String   @id @default(cuid())
+  shopId    String
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  type      String // 如"copywriting"、"script"、"image"、"chat"
+  model     String
+  prompt    String?
+  output    String?
+  status    String // "success" / "error"
+  error     String? // 失败时的错误信息
+  createdAt DateTime @default(now())
+}
+
+// 技能：模板内容存于 skills/ 目录的 .md 文件，这里记录技能的启用状态与管理信息；不属于特定店铺。
+model Skill {
+  id          String   @id @default(cuid())
+  name        String // 技能名称
+  filename    String // skills/ 目录下的文件名，如 "示例-美式口语化文案.md"
+  description String? // 技能说明
+  enabled     Boolean  @default(true) // 是否启用
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

@@ -1,0 +1,4 @@
+/* 全局样式：引入 Tailwind 三个指令，shadcn/ui 的主题变量在初始化时追加。 */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

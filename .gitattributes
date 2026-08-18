@@ -1,0 +1,3 @@
+# 换行符规则：所有文本文件仓库内统一存 LF；Windows 批处理必须 CRLF；shell 脚本必须 LF
+* text=auto eol=lf
+*.bat text eol=crlf

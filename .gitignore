@@ -1,0 +1,34 @@
+# 依赖目录
+node_modules/
+
+# 构建产物
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# 环境变量（包含密钥，绝不提交）
+.env
+.env.local
+.env.*.local
+
+# 本地数据（SQLite 数据库、密钥配置文件、生成的图片）
+data/*
+!data/.gitkeep
+public/generated/*
+!public/generated/.gitkeep
+
+# 日志
+*.log
+npm-debug.log*
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 编辑器
+.idea/
+.vscode/
+
+# 启动日志
+logs/

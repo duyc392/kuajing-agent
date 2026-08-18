@@ -1,0 +1,4 @@
+// 用途：TypeScript 类型统一定义处：按业务域分文件，在此统一导出（禁止 any，先定义类型再写实现）。
+export * from "./shop";
+export * from "./product";
+export * from "./keys";
