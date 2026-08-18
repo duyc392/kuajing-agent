@@ -1,14 +1,16 @@
-// 用途：店铺业务逻辑：列表、详情、创建、编辑、归档（归档代替删除，对应 PRD 用户故事：添加 / 编辑 / 归档店铺）。
+// 用途：店铺业务逻辑：列表（带商品数）、详情、创建、编辑、归档（归档代替删除，对应 PRD 用户故事：添加 / 编辑 / 归档 / 切换店铺）。
 import type { Shop } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { NotFoundError } from "@/lib/errors";
-import type { ShopCreateInput, ShopUpdateInput } from "@/types";
+import type { ShopCreateInput, ShopOverview, ShopUpdateInput } from "@/types";
 
-export async function listShops(includeArchived = false): Promise<Shop[]> {
-  return prisma.shop.findMany({
+export async function listShops(includeArchived = false): Promise<ShopOverview[]> {
+  const shops = await prisma.shop.findMany({
     where: includeArchived ? {} : { archived: false },
     orderBy: { createdAt: "asc" },
+    include: { _count: { select: { products: true } } },
   });
+  return shops.map(({ _count, ...shop }) => ({ ...shop, productCount: _count.products }));
 }
 
 export async function getShop(id: string): Promise<Shop> {
@@ -24,7 +26,8 @@ export async function createShop(input: ShopCreateInput): Promise<Shop> {
 }
 
 export async function updateShop(id: string, input: ShopUpdateInput): Promise<Shop> {
-  await getShop(id);
+  const current = await getShop(id);
+  if (Object.keys(input).length === 0) return current;
   return prisma.shop.update({ where: { id }, data: { ...input } });
 }
 
