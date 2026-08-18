@@ -25,11 +25,16 @@ const saveSchema = z.object({
       baseUrl: z.string().url("FastMoss 接口地址格式不正确").optional(),
     })
     .optional(),
-});
+}).refine(
+  (data) => Object.values(data).some((group) => group !== undefined && Object.values(group).some((v) => v !== undefined)),
+  { message: "至少填写一项配置再保存" },
+);
+
+const NO_STORE = { "Cache-Control": "no-store" };
 
 export async function GET() {
   try {
-    return Response.json(await getKeysStatus());
+    return Response.json(await getKeysStatus(), { headers: NO_STORE });
   } catch (error) {
     return toErrorResponse(error);
   }
@@ -38,7 +43,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const input = saveSchema.parse(await request.json());
-    return Response.json(await saveKeys(input));
+    return Response.json(await saveKeys(input), { headers: NO_STORE });
   } catch (error) {
     return toErrorResponse(error);
   }

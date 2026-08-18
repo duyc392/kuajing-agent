@@ -4,8 +4,8 @@ import type { KeyGroupStatus, KeysConfig, KeysStatus, SaveKeysInput } from "@/ty
 
 function maskKey(apiKey: string): string {
   const trimmed = apiKey.trim();
-  if (trimmed.length <= 8) return "****";
-  return `${trimmed.slice(0, 4)}****${trimmed.slice(-4)}`;
+  if (trimmed.length <= 4) return "****";
+  return `****${trimmed.slice(-4)}`;
 }
 
 function toGroupStatus(config: KeysConfig, group: "llm" | "image" | "fastmoss"): KeyGroupStatus {

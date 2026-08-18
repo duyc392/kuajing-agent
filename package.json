@@ -4,9 +4,9 @@
   "private": true,
   "description": "TikTok 跨境电商 AI 工作台（开源、本地部署、单人使用）",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -H 127.0.0.1",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -H 127.0.0.1",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",

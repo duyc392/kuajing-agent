@@ -1,6 +1,10 @@
 // 用途：首次使用引导第 1 步页面：配置三个服务的 API Key（保存到本机后进入创建店铺）。
 import ApiKeyForm from "@/components/onboarding/api-key-form";
 
+export const metadata = {
+  title: "配置 API Key · TikTok 跨境电商工作台",
+};
+
 const STEPS = [
   { label: "配置密钥", active: true },
   { label: "创建店铺", active: false },
