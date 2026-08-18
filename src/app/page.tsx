@@ -5,8 +5,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiRequest } from "@/lib/api-client";
-import type { KeysStatus } from "@/types";
-import type { Shop } from "@prisma/client";
+import type { KeysStatus, ShopOverview } from "@/types";
 
 export default function HomePage() {
   const router = useRouter();
@@ -19,7 +18,7 @@ export default function HomePage() {
           router.replace("/onboarding");
           return;
         }
-        const shops = await apiRequest<Shop[]>("GET", "/api/shops");
+        const shops = await apiRequest<ShopOverview[]>("GET", "/api/shops");
         router.replace(shops.length > 0 ? "/workspace" : "/create-shop");
       })
       .catch((e: Error) => setError(e.message));

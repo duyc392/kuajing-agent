@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { apiRequest } from "@/lib/api-client";
 import { useShops } from "@/components/shop/shop-context";
+import Loading from "@/components/shared/loading";
+import ErrorMessage from "@/components/shared/error-message";
 import { ShopFields } from "@/components/shop/shop-fields";
 import type { ShopFieldsValue } from "@/components/shop/shop-fields";
 import type { ShopOverview } from "@/types";
@@ -216,17 +218,6 @@ function ShopListView({ shops, currentShopId, onSwitch, onReload }: ShopListView
   );
 }
 
-function LoadError({ message, onRetry }: { message: string; onRetry: () => void }) {
-  return (
-    <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
-      <p>{message}</p>
-      <button type="button" onClick={onRetry} className="mt-3 rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700">
-        重试
-      </button>
-    </div>
-  );
-}
-
 export default function ShopManager() {
   const { currentShopId, setCurrentShopId, refresh } = useShops();
   const [list, setList] = useState<ShopOverview[] | null>(null);
@@ -248,9 +239,7 @@ export default function ShopManager() {
   }, []);
 
   if (list === null) {
-    return error ? <LoadError message={error} onRetry={() => void reload()} /> : (
-      <p className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">正在加载店铺…</p>
-    );
+    return error ? <ErrorMessage message={error} onRetry={() => void reload()} /> : <Loading text="正在加载店铺…" />;
   }
 
   const archivedCount = list.filter((shop) => shop.archived).length;

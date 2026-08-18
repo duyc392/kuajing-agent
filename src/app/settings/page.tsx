@@ -1,6 +1,6 @@
 // 用途：设置页入口，导航到五个板块：店铺管理、模型与 API Key、Agent 记忆、技能管理、数据导出。
 import Link from "next/link";
-import Header from "@/components/layout/header";
+import AppShell from "@/components/layout/app-shell";
 
 export const metadata = {
   title: "设置 · TikTok 跨境电商工作台",
@@ -16,8 +16,7 @@ const SECTIONS = [
 
 export default function SettingsPage() {
   return (
-    <main className="min-h-screen bg-gray-50">
-      <Header />
+    <AppShell>
       <div className="mx-auto max-w-3xl px-4 py-10">
         <h1 className="text-2xl font-bold text-gray-900">设置</h1>
         <p className="mt-2 text-sm text-gray-500">五个管理板块，点击进入。</p>
@@ -37,6 +36,6 @@ export default function SettingsPage() {
           ))}
         </div>
       </div>
-    </main>
+    </AppShell>
   );
 }

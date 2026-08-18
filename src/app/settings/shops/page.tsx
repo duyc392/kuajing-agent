@@ -1,6 +1,6 @@
 // 用途：店铺管理页（设置分组）：切换当前店铺、编辑资料、归档 / 恢复、新建入口。
 import Link from "next/link";
-import Header from "@/components/layout/header";
+import AppShell from "@/components/layout/app-shell";
 import ShopManager from "@/components/shop/shop-manager";
 
 export const metadata = {
@@ -9,8 +9,7 @@ export const metadata = {
 
 export default function SettingsShopsPage() {
   return (
-    <main className="min-h-screen bg-gray-50">
-      <Header />
+    <AppShell>
       <div className="mx-auto max-w-3xl px-4 py-10">
         <header className="mb-6">
           <Link href="/settings" className="text-xs text-gray-400 hover:text-gray-600">← 返回设置</Link>
@@ -21,6 +20,6 @@ export default function SettingsShopsPage() {
         </header>
         <ShopManager />
       </div>
-    </main>
+    </AppShell>
   );
 }

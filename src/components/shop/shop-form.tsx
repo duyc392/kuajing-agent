@@ -8,7 +8,7 @@ import { apiRequest } from "@/lib/api-client";
 import { useShops } from "@/components/shop/shop-context";
 import { ShopFields } from "@/components/shop/shop-fields";
 import type { ShopFieldsValue } from "@/components/shop/shop-fields";
-import type { Shop } from "@prisma/client";
+import type { ShopOverview } from "@/types";
 
 const EMPTY: ShopFieldsValue = { name: "", market: "", description: "" };
 
@@ -35,7 +35,7 @@ export default function ShopForm() {
     setSaving(true);
     setError("");
     try {
-      const shop = await apiRequest<Shop>("POST", "/api/shops", {
+      const shop = await apiRequest<ShopOverview>("POST", "/api/shops", {
         name: value.name.trim(),
         market: value.market,
         description: value.description.trim() === "" ? null : value.description.trim(),
