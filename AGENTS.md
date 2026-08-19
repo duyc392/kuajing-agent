@@ -101,12 +101,14 @@ pages / components
 每个工具一个文件，统一结构：`name` + 清楚的 `description`（Agent 靠它决定何时调用）+ zod 参数 schema + `execute`：
 
 ```typescript
+import { Type } from "typebox"
+
 export const copywritingTool = {
   name: 'generate_product_copy',
   description: '为商品生成完整上架文案，自动适配目标市场语言',
-  parameters: z.object({
-    productId: z.string().describe('商品 ID（cuid 字符串）'),
-    language: z.string().describe('目标语言：en / th / vi / id 等'),
+  parameters: Type.Object({
+    productId: Type.String({ description: '商品 ID（cuid 字符串）' }),
+    language: Type.String({ description: '目标语言：en / th / vi / id 等' }),
   }),
   execute: async (params) => {
     const { productId, language } = params
@@ -117,6 +119,7 @@ export const copywritingTool = {
 
 - `execute` 只做"调 service + 格式化返回"，不写业务逻辑、不写 prisma 查询。
 - 所有工具在 `src/agent/tools/index.ts` 统一注册。
+- **参数 schema 用 TypeBox（`import { Type } from "typebox"`），不用 zod**：pi-agent-core 的 `AgentTool.parameters` 契约要求 TypeBox 的 `TSchema` 类型，zod schema 不满足该类型约束。zod 仍用于 API 层的入参校验。
 
 ## 八、新功能标准流程（不跳步）
 

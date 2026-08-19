@@ -8,9 +8,9 @@ import { archiveShop, getShop, updateShop } from "@/services/shops.service";
 const MARKET_ERROR = "目标市场不在支持列表中，请从下拉列表选择";
 
 const updateSchema = z.object({
-  name: z.string().trim().min(1, "店铺名称不能为空").optional(),
+  name: z.string().trim().min(1, "店铺名称不能为空").max(100, "店铺名称过长（上限 100 字）").optional(),
   market: z.string().trim().refine(isKnownMarket, MARKET_ERROR).optional(),
-  description: z.string().nullable().optional(),
+  description: z.string().max(2000, "店铺简述过长（上限 2000 字）").nullable().optional(),
   archived: z.boolean().optional(),
 });
 

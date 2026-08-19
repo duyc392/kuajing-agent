@@ -12,3 +12,8 @@ export function formatRelativeTime(iso: string, now = new Date()): string {
   if (days < 7) return `${days} 天前`;
   return date.toLocaleDateString("zh-CN");
 }
+
+// 直播脚本时长显示：数据库存秒，界面按分钟展示（各阶段分钟数总和 × 60 = 秒数，恒为整数分钟）。
+export function formatMinutes(totalSeconds: number): string {
+  return `${Math.round(totalSeconds / 60)} 分钟`;
+}

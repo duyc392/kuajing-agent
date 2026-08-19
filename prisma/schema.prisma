@@ -18,6 +18,7 @@ model Shop {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   products      Product[]
+  productCopies ProductCopy[]
   videoScripts  VideoScript[]
   liveScripts   LiveScript[]
   conversations Conversation[]
@@ -40,6 +41,7 @@ model Product {
   copies    ProductCopy[]
   variants  ProductVariant[]
   images    ProductImage[]
+  videoScripts VideoScript[]
 }
 
 // 商品变体：颜色、尺寸等组合，每个变体有 SKU 编码。
@@ -53,6 +55,8 @@ model ProductVariant {
   price     Float? // 变体价格，缺省时用商品基础价格
   stock     Int? // 库存数量
   createdAt DateTime @default(now())
+
+  @@unique([productId, sku]) // 同一商品内 SKU 唯一，防止重复建档导致无法区分
 }
 
 // 商品图片：图片文件本体存在 public/generated/ 目录，这里记录图片的路径、用途和应用状态。
@@ -73,6 +77,8 @@ model ProductCopy {
   id            String   @id @default(cuid())
   productId     String
   product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  shopId        String // 隔离键（PRD：所有业务对象以 shopId 为隔离键）
+  shop          Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
   title         String
   description   String
   sellingPoints String?
@@ -81,6 +87,9 @@ model ProductCopy {
   source        String // 来源："ai" 或 "human"
   isCurrent     Boolean  @default(false) // 是否为商品当前应用的版本
   createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt // 修改时间（切换当前版本时更新）
+
+  @@unique([productId, version]) // 同一商品内版本号唯一，防止并发生成重复版本
 }
 
 // 视频脚本：分镜内容、钩子、CTA；shots 存 JSON 文本（SQLite 不支持 Json 类型）。
@@ -88,7 +97,8 @@ model VideoScript {
   id        String   @id @default(cuid())
   shopId    String
   shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  productId String? // 可关联某个商品
+  productId String? // 可关联某个商品；商品删除时置空保留脚本（历史内容不随商品删除丢失）
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
   type      String // 开箱 / 教程 / 种草 / 对比
   duration  Int // 时长（秒）
   hook      String // 前 3 秒钩子文案
@@ -142,6 +152,8 @@ model MemoryEntry {
   content   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([shopId, category, content]) // 同店同分类同内容只存一条：并发提取时由数据库兜底去重
 }
 
 // 生成审计：每次 AI 调用留一条记录。

@@ -24,6 +24,8 @@ const DEEPSEEK_DEFAULT_BASE = LLM_DEFAULTS.baseUrl;
 export interface CreateAgentOptions {
   systemPrompt: string;
   messages: AgentMessage[];
+  // 覆盖配置里的主模型 id（如记忆提取用 memoryModel）；缺省时使用 keys.llm.model。
+  model?: string;
 }
 
 interface LlmSettings {
@@ -107,7 +109,7 @@ export async function createAgent(options: CreateAgentOptions): Promise<Agent> {
         return {
           apiKey: keys.llm.apiKey,
           baseUrl: keys.llm.baseUrl || DEEPSEEK_DEFAULT_BASE,
-          model: keys.llm.model || "deepseek-chat",
+          model: options.model || keys.llm.model || "deepseek-chat",
         };
       })();
   // provider 注册与流式调用共用同一个 models 实例（分开注册会导致流式时 Unknown provider）。

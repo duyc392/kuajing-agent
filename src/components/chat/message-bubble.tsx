@@ -1,6 +1,7 @@
-// 用途：单条消息气泡：用户消息靠右蓝底，Agent 消息靠左白底；Agent 流式输出期间显示光标动画。
+// 用途：单条消息气泡：用户消息靠右蓝底，Agent 消息靠左白底；Agent 消息上方渲染历史工具调用卡片；流式输出期间显示光标动画。
 "use client";
 
+import ToolCard from "@/components/chat/tool-card";
 import type { MessageView } from "@/types";
 
 interface MessageBubbleProps {
@@ -17,6 +18,13 @@ export default function MessageBubble({ message, streaming = false }: MessageBub
           isUser ? "bg-blue-600 text-white" : "border border-gray-200 bg-white text-gray-800"
         }`}
       >
+        {message.toolCalls && message.toolCalls.length > 0 && (
+          <div className="mb-2 grid gap-2">
+            {message.toolCalls.map((call) => (
+              <ToolCard key={call.id} call={call} />
+            ))}
+          </div>
+        )}
         {message.content}
         {streaming && <span className="ml-0.5 inline-block animate-pulse">▍</span>}
       </div>

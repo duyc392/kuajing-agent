@@ -5,8 +5,17 @@ cd /d "%~dp0"
 
 if not exist logs mkdir logs
 if not exist data mkdir data
-REM 安全加固：data 目录存放 API Key 与数据库，移除继承权限，仅保留当前用户、SYSTEM、Administrators（防同机其他账号读取）。
-icacls data /inheritance:r /grant:r "%USERNAME%:(OI)(CI)F" "SYSTEM:(OI)(CI)F" "Administrators:(OI)(CI)F" >nul 2>nul
+REM 安全加固：data 目录存放 API Key 与数据库，移除继承权限，仅保留当前用户、SYSTEM、Administrators（防同机其他账号读取）；加固失败立即停止启动，绝不带病运行。
+icacls data /inheritance:r /grant:r "%USERNAME%:(OI)(CI)F" "SYSTEM:(OI)(CI)F" "Administrators:(OI)(CI)F" >nul
+if errorlevel 1 goto acl_fail
+if exist data\config.json (
+  icacls "data\config.json" /inheritance:r /grant:r "%USERNAME%:F" "SYSTEM:F" "Administrators:F" >nul
+  if errorlevel 1 goto acl_fail
+)
+if exist data\kuajing.db (
+  icacls "data\kuajing.db" /inheritance:r /grant:r "%USERNAME%:F" "SYSTEM:F" "Administrators:F" >nul
+  if errorlevel 1 goto acl_fail
+)
 echo [%date% %time%] 脚本开始执行 > logs\bat.log
 
 where node >nul 2>nul
@@ -61,6 +70,12 @@ set /a tries+=1
 if %tries% geq 45 goto fail
 ping -n 3 127.0.0.1 >nul
 goto waitloop
+
+:acl_fail
+echo [错误] data 目录权限加固失败，已停止启动以保护 API Key 与业务数据安全。
+echo [错误] 请确认你对本项目目录有完全控制权限，或将项目移动到自己的用户目录后重试。
+pause
+exit /b 1
 
 :fail
 echo.

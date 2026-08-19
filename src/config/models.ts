@@ -11,5 +11,5 @@ export const IMAGE_DEFAULTS = {
 };
 
 export const FASTMOSS_DEFAULTS = {
-  baseUrl: "https://open.fastmoss.com",
+  baseUrl: "https://mcp.fastmoss.com",
 };

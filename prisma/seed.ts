@@ -140,25 +140,35 @@ const VIDEO_SCRIPTS = [
     shopId: "shop-1", type: "种草", duration: 30, style: "美式快节奏种草",
     hook: "我回购了 3 次的补光镜，到底好在哪？", cta: "点击购物车，现在下单立减 5 美元",
     shots: JSON.stringify([
-      { shot: 1, scene: "特写开箱", voiceover: "This mirror changed my makeup game.", duration: 5 },
-      { shot: 2, scene: "三档补光演示", voiceover: "Three light modes for any lighting.", duration: 8 },
-      { shot: 3, scene: "折叠收纳", voiceover: "Folds flat for your bag.", duration: 7 },
-      { shot: 4, scene: "行动号召", voiceover: "Grab yours now with $5 off.", duration: 10 },
+      { scene: "特写开箱", voiceover: "This mirror changed my makeup game.", subtitle: "This mirror changed my makeup game.", seconds: 3 },
+      { scene: "三档补光演示", voiceover: "Three light modes for any lighting.", subtitle: "Three light modes for any lighting.", seconds: 10 },
+      { scene: "折叠收纳", voiceover: "Folds flat for your bag.", subtitle: "Folds flat for your bag.", seconds: 7 },
+      { scene: "行动号召", voiceover: "Grab yours now with $5 off.", subtitle: "Grab yours now with $5 off.", seconds: 10 },
     ]),
   },
   {
     shopId: "shop-2", type: "开箱", duration: 15, style: "印尼语快节奏开箱",
     hook: "Kotak ini bisa dilipat?", cta: "Cek keranjang kuning sekarang",
     shots: JSON.stringify([
-      { shot: 1, scene: "开箱", voiceover: "Buka kotak, lihat isinya.", duration: 5 },
-      { shot: 2, scene: "承重演示", voiceover: "Kuat sampai 15 kilo.", duration: 5 },
-      { shot: 3, scene: "折叠对比", voiceover: "Lipat, simpan, selesai.", duration: 5 },
+      { scene: "开箱", voiceover: "Buka kotak, lihat isinya.", subtitle: "Buka kotak, lihat isinya.", seconds: 3 },
+      { scene: "承重演示", voiceover: "Kuat sampai 15 kilo.", subtitle: "Kuat sampai 15 kilo.", seconds: 5 },
+      { scene: "折叠对比", voiceover: "Lipat, simpan, selesai.", subtitle: "Lipat, simpan, selesai.", seconds: 7 },
     ]),
   },
 ];
 
 const LIVE_SCRIPTS = [
-  { shopId: "shop-1", duration: 3600, productList: "便携式 LED 美妆镜、天然植物润唇膏", flow: "开场福利 → 产品讲解 → 互动抽奖 → 促销收尾" },
+  {
+    shopId: "shop-1",
+    duration: 3600,
+    productList: JSON.stringify(["便携式 LED 美妆镜", "天然植物润唇膏"]),
+    flow: JSON.stringify([
+      { phase: "开场", minutes: 10, goal: "欢迎留人并预告今晚福利", script: "Welcome to our live! Tonight we have two best-sellers with big discounts, stay tuned!" },
+      { phase: "商品讲解", minutes: 25, goal: "演示美妆镜三档补光与折叠设计，讲解润唇膏成分", script: "Look at this mirror! Three light modes for any lighting, and it folds flat into your bag…" },
+      { phase: "互动", minutes: 10, goal: "答疑互动与抽奖留人", script: "Drop a 1 if you want the mirror, or a 2 for the lip balm! Every 10 minutes we pick a lucky viewer…" },
+      { phase: "促销", minutes: 15, goal: "限时折扣逼单", script: "Last 15 minutes! Order now and get $5 off, free shipping included. Don't miss it!" },
+    ]),
+  },
 ];
 
 const GENERATIONS = [
@@ -181,7 +191,7 @@ async function main() {
             variants: { create: p.variants },
             copies: {
               create: p.copies.map((c, i) => ({
-                ...c, version: i + 1, source: "ai", isCurrent: i === p.copies.length - 1,
+                ...c, version: i + 1, source: "ai", isCurrent: i === p.copies.length - 1, shopId: s.id,
               })),
             },
           })),

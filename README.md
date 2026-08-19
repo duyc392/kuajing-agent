@@ -57,6 +57,10 @@ npm run db:seed        # 可选：向空数据库填充演示数据
 npm run dev            # 打开 http://localhost:3000
 ```
 
+> 手动启动前先做一次 data 目录权限加固（启动脚本会自动完成，此处是手动流程的等价步骤）：
+> - Windows：`icacls data /inheritance:r /grant:r "%USERNAME%:(OI)(CI)F" "SYSTEM:(OI)(CI)F" "Administrators:(OI)(CI)F"`
+> - macOS / Linux：`chmod 700 data && chmod 600 data/config.json data/kuajing.db`
+
 ## 数据存储
 
 - 数据库：`data/kuajing.db`（SQLite 单文件），备份 = 复制这个文件；数据库只存文字与记录，不存图片文件本身

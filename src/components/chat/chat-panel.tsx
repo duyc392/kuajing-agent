@@ -6,22 +6,29 @@ import type { FormEvent } from "react";
 import { apiRequest } from "@/lib/api-client";
 import { streamChatRequest } from "@/lib/api-stream";
 import MessageBubble from "@/components/chat/message-bubble";
+import ToolCard from "@/components/chat/tool-card";
 import Loading from "@/components/shared/loading";
 import ErrorMessage from "@/components/shared/error-message";
 import { useShops } from "@/components/shop/shop-context";
-import type { ChatStreamEvent, MessageView } from "@/types";
+import type { ChatStreamEvent, MessageView, ToolCallRecord } from "@/types";
 
 interface MessageListProps {
   messages: MessageView[];
+  activeTools: ToolCallRecord[];
   streamText: string;
   bottomRef: React.Ref<HTMLDivElement>;
 }
 
-function MessageList({ messages, streamText, bottomRef }: MessageListProps) {
+function MessageList({ messages, activeTools, streamText, bottomRef }: MessageListProps) {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 px-4 py-6">
       {messages.map((message) => (
         <MessageBubble key={message.id} message={message} />
+      ))}
+      {activeTools.map((call) => (
+        <div key={call.id} className="flex justify-start">
+          <ToolCard call={call} />
+        </div>
       ))}
       {streamText !== "" && (
         <MessageBubble
@@ -121,17 +128,23 @@ function useConversationMessages(conversationId: string, currentShopId: string |
 interface StreamHandlerSetters {
   setMessages: (updater: (prev: MessageView[] | null) => MessageView[]) => void;
   setStreamText: (updater: (prev: string) => string) => void;
+  setActiveTools: (updater: (prev: ToolCallRecord[]) => ToolCallRecord[]) => void;
   setError: (message: string) => void;
 }
 
-// SSE 流事件分派：把后端事件落到本地状态。
+// SSE 流事件分派：把后端事件落到本地状态；工具开始/结束维护进行中的工具卡片列表。
 function createStreamEventHandler(setters: StreamHandlerSetters) {
   return (event: ChatStreamEvent) => {
     if (event.type === "user") setters.setMessages((prev) => [...(prev ?? []), event.message]);
+    if (event.type === "tool_start") setters.setActiveTools((prev) => [...prev, event.call]);
+    if (event.type === "tool_end") {
+      setters.setActiveTools((prev) => prev.map((call) => (call.id === event.call.id ? event.call : call)));
+    }
     if (event.type === "delta") setters.setStreamText((prev) => prev + event.text);
     if (event.type === "done") {
       setters.setMessages((prev) => [...(prev ?? []), event.agentMessage]);
       setters.setStreamText(() => "");
+      setters.setActiveTools(() => []);
     }
     if (event.type === "error") setters.setError(event.error);
   };
@@ -144,10 +157,11 @@ export default function ChatPanel({ conversationId, onTurnComplete }: ChatPanelP
   const [sending, setSending] = useState(false);
   const sendingRef = useRef(false);
   const [streamText, setStreamText] = useState("");
+  const [activeTools, setActiveTools] = useState<ToolCallRecord[]>([]);
   const bottomRef = useRef<HTMLDivElement | null>(null);
-  const handleEvent = createStreamEventHandler({ setMessages, setStreamText, setError });
+  const handleEvent = createStreamEventHandler({ setMessages, setStreamText, setActiveTools, setError });
 
-  useAutoScroll(bottomRef, [messages?.length, streamText]);
+  useAutoScroll(bottomRef, [messages?.length, streamText, activeTools.length]);
 
   async function handleSend() {
     // sendingRef 同步锁：同一瞬间连点两次发送都会读到 sending=false 而发出两条消息，用 ref 立即占位。
@@ -159,6 +173,7 @@ export default function ChatPanel({ conversationId, onTurnComplete }: ChatPanelP
     setInput("");
     setError("");
     setStreamText("");
+    setActiveTools([]);
     try {
       await streamChatRequest(
         `/api/conversations/${conversationId}/messages`,
@@ -179,7 +194,7 @@ export default function ChatPanel({ conversationId, onTurnComplete }: ChatPanelP
       <div className="flex-1 overflow-y-auto bg-gray-50">
         {messages === null && !error && <Loading text="加载消息记录…" />}
         {error && messages === null && <div className="p-4"><ErrorMessage message={error} onRetry={retry} /></div>}
-        {messages !== null && <MessageList messages={messages} streamText={streamText} bottomRef={bottomRef} />}
+        {messages !== null && <MessageList messages={messages} activeTools={activeTools} streamText={streamText} bottomRef={bottomRef} />}
         {error && messages !== null && <div className="px-4 pb-3"><ErrorMessage message={error} /></div>}
       </div>
       <ChatInput value={input} onChange={setInput} disabled={sending} onSubmit={handleSend} />

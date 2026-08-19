@@ -1,10 +1,12 @@
-// 用途：记忆条目接口：GET 分类查询当前店铺的 Agent 记忆，PATCH 编辑记忆内容，DELETE 删除记忆。
-export function GET() {
-  return Response.json({ ok: true });
-}
-export function PATCH() {
-  return Response.json({ ok: true });
-}
-export function DELETE() {
-  return Response.json({ ok: true });
+// 用途：记忆条目列表接口：GET 按当前店铺查询 Agent 长期记忆（记忆新增由对话结束后的提取器完成，本接口只读）。
+import { toErrorResponse } from "@/lib/api-error";
+import { readShopId } from "@/lib/request-shop";
+import { listMemories } from "@/services/memory.service";
+
+export async function GET(request: Request) {
+  try {
+    return Response.json(await listMemories(readShopId(request)));
+  } catch (error) {
+    return toErrorResponse(error);
+  }
 }

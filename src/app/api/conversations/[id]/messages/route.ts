@@ -1,11 +1,11 @@
-// 用途：对话消息接口：GET 按店铺读取消息记录；POST 发送用户消息并以 SSE 流式返回 Agent 回复（user → delta… → done / error）。
-// 业务编排在 Agent 层（prepareUserTurn / runAgentReply），本层只做参数校验与 SSE 帧封装。
+// 用途：对话消息接口：GET 按店铺读取消息记录；POST 发送用户消息并以 SSE 流式返回 Agent 回复（user → tool_start/tool_end → delta… → done / error）。
+// 业务编排在 Agent 层（prepareUserTurn / runAgentReplyEvents），本层只做参数校验与 SSE 帧封装。
 import { z } from "zod";
 import { toErrorResponse } from "@/lib/api-error";
 import { readJsonBody } from "@/lib/read-body";
 import { ValidationError } from "@/lib/errors";
 import { listMessages } from "@/services/messages.service";
-import { prepareUserTurn, releaseTurn, runAgentReply } from "@/agent/chat";
+import { prepareUserTurn, releaseTurn, runAgentReplyEvents } from "@/agent/chat";
 import type { ChatStreamEvent, MessageView } from "@/types";
 
 const idSchema = z.string({ required_error: "缺少对话 ID" }).min(1, "缺少对话 ID").max(128, "对话 ID 无效");
@@ -54,6 +54,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   // 客户端断开时释放回合锁，防止后续消息被 429 卡死。
   request.signal.addEventListener("abort", () => releaseTurn(conversationId));
 
+  // 响应创建：把 Agent 层产出的事件编码为 SSE 帧。
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -69,24 +70,14 @@ export async function POST(request: Request, { params }: { params: { id: string 
         }
       };
       send({ type: "user", message: userMessageView });
+      for await (const event of runAgentReplyEvents({ conversationId, shopId, content, userMessage: userMessageView, signal: request.signal })) {
+        send(event);
+      }
+      closed = true;
       try {
-        const agentMessage = await runAgentReply({
-          conversationId,
-          shopId,
-          content,
-          userMessage: userMessageView,
-          onDelta: (text) => send({ type: "delta", text }),
-        });
-        send({ type: "done", agentMessage });
-      } catch (error) {
-        send({ type: "error", error: error instanceof Error ? error.message : "Agent 回复失败，请重试" });
-      } finally {
-        closed = true;
-        try {
-          controller.close();
-        } catch {
-          // 流已被取消，无需处理。
-        }
+        controller.close();
+      } catch {
+        // 流已被取消，无需处理。
       }
     },
   });

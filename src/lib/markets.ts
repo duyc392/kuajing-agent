@@ -32,3 +32,28 @@ export function isKnownMarket(value: string): boolean {
   return MARKETS.some((market) => market.value === value);
 }
 
+// FastMoss 数据平台的地域代码映射（选品工具用）：把店铺市场中文名转换为 FastMoss 的 region 代码。
+const MARKET_REGION_CODES: Record<string, string> = {
+  "美国": "US",
+  "英国": "UK",
+  "德国": "DE",
+  "法国": "FR",
+  "意大利": "IT",
+  "西班牙": "ES",
+  "东南亚-印尼": "ID",
+  "东南亚-泰国": "TH",
+  "东南亚-越南": "VN",
+  "东南亚-马来西亚": "MY",
+  "东南亚-菲律宾": "PH",
+  "东亚-日本": "JP",
+  "东亚-韩国": "KR",
+  "中东-沙特": "SA",
+  "拉美-巴西": "BR",
+  "拉美-墨西哥": "MX",
+};
+
+// 返回 null 表示该市场暂不支持 FastMoss 地域查询。
+export function marketToRegion(market: string): string | null {
+  return MARKET_REGION_CODES[market] ?? null;
+}
+

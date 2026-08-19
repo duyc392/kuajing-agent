@@ -1,10 +1,15 @@
-// 用途：脚本详情页，查看和修改分镜脚本 / 直播脚本。
+// 用途：脚本详情页，查看和修改视频分镜脚本。
 import AppShell from "@/components/layout/app-shell";
+import ScriptDetail from "@/components/scripts/script-detail";
 
-export default function ScriptDetailPage() {
+export const metadata = {
+  title: "脚本详情 · TikTok 跨境电商工作台",
+};
+
+export default function ScriptDetailPage({ params }: { params: { id: string } }) {
   return (
     <AppShell>
-      <div className="flex h-full items-center justify-center text-sm text-gray-400">脚本详情（占位，待开发）</div>
+      <ScriptDetail scriptId={params.id} />
     </AppShell>
   );
 }

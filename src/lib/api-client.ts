@@ -3,7 +3,11 @@ const TIMEOUT_MS = 15000;
 
 export async function apiRequest<T>(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, TIMEOUT_MS);
   const onOuterAbort = () => controller.abort();
   signal?.addEventListener("abort", onOuterAbort);
   try {
@@ -27,7 +31,9 @@ export async function apiRequest<T>(method: string, path: string, body?: unknown
     return data as T;
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("请求超时或已取消，请重试");
+      // 外层调用方主动取消（如切换店铺）：原样抛回，由调用方的 stale 标记决定是否展示错误。
+      if (signal?.aborted) throw error;
+      throw new Error(timedOut ? "请求超时，请重试" : "请求已取消，请重试");
     }
     throw error;
   } finally {
