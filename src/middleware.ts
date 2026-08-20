@@ -1,7 +1,8 @@
-// 用途：API 中间件（Next.js 框架约定文件）：所有 /api/* 请求先过本机守卫，非本机请求一律 403；业务响应统一禁止缓存（浏览器/代理不落盘业务内容）。
+// 用途：API 中间件（Next.js 框架约定文件）：所有 /api/* 请求先过本机守卫（Host + Origin + Sec-Fetch-Site 三重校验），
+// 非本机或跨站请求一律 403；业务响应统一禁止缓存（浏览器/代理不落盘业务内容）。
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { localRequestViolation } from "@/lib/request-guard";
+import { crossSiteFetchViolation, localRequestViolation } from "@/lib/request-guard";
 
 function forbidden(message: string): NextResponse {
   return new NextResponse(JSON.stringify({ error: message, code: "FORBIDDEN" }), {
@@ -11,7 +12,9 @@ function forbidden(message: string): NextResponse {
 }
 
 export function middleware(request: NextRequest) {
-  const violation = localRequestViolation(request.headers.get("host"), request.headers.get("origin"));
+  const violation =
+    localRequestViolation(request.headers.get("host"), request.headers.get("origin")) ??
+    crossSiteFetchViolation(request.headers.get("sec-fetch-site"));
   if (violation) {
     return forbidden(violation);
   }

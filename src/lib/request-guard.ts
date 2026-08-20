@@ -24,3 +24,13 @@ export function localRequestViolation(host: string | null, origin: string | null
   if (parsed.port !== hostInfo.port) return "禁止访问：不允许跨站请求";
   return null;
 }
+
+// Sec-Fetch-Site 白名单：现代浏览器所有请求都携带此头，值不是本站/用户直访时说明请求发自其他网页——
+// 覆盖 <img>/no-cors 等「不携带 Origin」的跨站盲打形态（它们不会被上面的 Origin 校验拦住）。
+// 头缺失时（老浏览器/非浏览器客户端）不拦截，落回 Host + Origin 校验，行为与历史版本一致。
+export function crossSiteFetchViolation(secFetchSite: string | null): string | null {
+  if (!secFetchSite) return null;
+  return secFetchSite === "same-origin" || secFetchSite === "same-site" || secFetchSite === "none"
+    ? null
+    : "禁止访问：不允许跨站请求";
+}

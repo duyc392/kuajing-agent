@@ -19,7 +19,7 @@
 | Agent 记忆 | `src/agent/memory/` | `short-term.ts`、`long-term.ts`、`extractor.ts` |
 | Agent 提示词 | `src/agent/prompts/` | `system.ts` 等 |
 | Agent 知识/技能 | `src/agent/knowledge/`、`src/agent/skills/` | — |
-| MCP 对接 | `src/agent/mcp/` | `fastmoss.ts` |
+| MCP 对接 | 入口 `src/agent/mcp/`；传输实现位于 `src/lib/fastmoss-client.ts`（服务层与 Agent 层共用，含配置读取 `readFastmossSettings`） | `fastmoss.ts` |
 | 业务逻辑（增删改查） | `src/services/` | `商品.service.ts` 格式 |
 | TypeScript 类型 | `src/types/` | 按业务域分文件或统一 `index.ts` |
 | 数据库客户端、工具函数 | `src/lib/` | `db.ts`、`config.ts`、`utils.ts` |

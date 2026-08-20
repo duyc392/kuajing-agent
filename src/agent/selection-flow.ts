@@ -2,12 +2,10 @@
 // 模型解读并组合「结构化报告卡」（PRD 故事 13-15）。报告不落库，随对话展示；模型调用记录生成审计。
 // 摘要由代码从校验通过的卡片派生（单一数据源）；整个流程受 30 秒总截止时间约束。
 import { AppError, ValidationError } from "@/lib/errors";
-import { readKeysConfig } from "@/lib/config";
 import { marketToRegion } from "@/lib/markets";
 import { MAX_CONTEXT_MEMORIES } from "@/config/memory";
-import { FASTMOSS_DEFAULTS } from "@/config/models";
 import { callWithGenerationAudit } from "@/agent/generate";
-import { createFastmossClient, type FastmossMCPClient, type FastmossSettings } from "@/agent/mcp/fastmoss";
+import { createFastmossClient, readFastmossSettings, type FastmossMCPClient } from "@/agent/mcp/fastmoss";
 import {
   buildCompetitorSystemPrompt,
   buildCompetitorUserPrompt,
@@ -52,12 +50,7 @@ function regionOf(market: string): string {
   return region;
 }
 
-// FastMoss 配置来自本机 data/config.json；未配置 Key 时给出引导。
-async function fastmossSettings(): Promise<FastmossSettings> {
-  const keys = await readKeysConfig();
-  if (!keys.fastmoss.apiKey) throw new ValidationError("尚未配置 FastMoss API Key，请先在设置页完成配置后再使用选品功能");
-  return { apiKey: keys.fastmoss.apiKey, baseUrl: keys.fastmoss.baseUrl || FASTMOSS_DEFAULTS.baseUrl };
-}
+// FastMoss 配置统一经 lib/fastmoss-client 的 readFastmossSettings 读取（与数据看板共用，未配置 Key 时中文引导）。
 
 // 流程级 30 秒截止信号（PRD 性能约束：选品报告 < 30 秒）：所有 MCP 调用与报告组合共用剩余时间。
 function createDeadlineSignal(signal?: AbortSignal): { signal: AbortSignal; clear: () => void } {
@@ -260,7 +253,7 @@ function competitorSummary(card: CompetitorDetails): string {
 export async function runMarketAnalysis(params: SelectionFlowParams): Promise<SelectionComposition<MarketAnalysisDetails>> {
   const region = regionOf(params.market);
   const deadline = createDeadlineSignal(params.signal);
-  const client = await createFastmossClient(await fastmossSettings());
+  const client = await createFastmossClient(await readFastmossSettings("选品功能"));
   try {
     const category = await resolveCategory(client, params.keywords ?? [], deadline.signal);
     const now = new Date();
@@ -297,7 +290,7 @@ export async function runMarketAnalysis(params: SelectionFlowParams): Promise<Se
 export async function runProductRecommendation(params: SelectionFlowParams): Promise<SelectionComposition<RecommendationDetails>> {
   const region = regionOf(params.market);
   const deadline = createDeadlineSignal(params.signal);
-  const client = await createFastmossClient(await fastmossSettings());
+  const client = await createFastmossClient(await readFastmossSettings("选品功能"));
   try {
     const category = await resolveCategory(client, params.keywords ?? [], deadline.signal);
     const weekFilter = { category_id: category.level1, date_type: "week", date_value: lastIsoWeekValue(new Date()), region };
@@ -337,7 +330,7 @@ export async function runProductRecommendation(params: SelectionFlowParams): Pro
 export async function runCompetitorAnalysis(params: SelectionFlowParams): Promise<SelectionComposition<CompetitorDetails>> {
   const region = regionOf(params.market);
   const deadline = createDeadlineSignal(params.signal);
-  const client = await createFastmossClient(await fastmossSettings());
+  const client = await createFastmossClient(await readFastmossSettings("选品功能"));
   try {
     const search = await client.callTool("shop_search", {
       filter: { region, shop_name: params.shopKeyword ?? "" },
