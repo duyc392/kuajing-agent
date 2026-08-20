@@ -1,9 +1,10 @@
 // 用途：工具调用卡片：运行中显示状态卡（故事 8 工具调用可见），完成后展示结构化结果；文案/视频脚本/直播脚本/选品调研有专属卡片，未知工具显示通用回退卡片。
 "use client";
 
-import { COMPETITOR_TOOL_NAME, COPY_TOOL_NAME, IMAGE_TOOL_NAME, IMAGE_VARIANT_TOOL_NAME, LIVE_SCRIPT_TOOL_NAME, MARKET_TOOL_NAME, RECOMMEND_TOOL_NAME, SCRIPT_TOOL_NAME } from "@/types";
+import { COMPETITOR_TOOL_NAME, COPY_TOOL_NAME, IMAGE_TOOL_NAME, IMAGE_VARIANT_TOOL_NAME, LIVE_SCRIPT_TOOL_NAME, MARKET_TOOL_NAME, PROPOSE_SKILL_TOOL_NAME, RECOMMEND_TOOL_NAME, SCRIPT_TOOL_NAME } from "@/types";
 import type { CopyToolDetails, ImageToolDetails, LiveScriptToolDetails, ScriptToolDetails, ToolCallRecord } from "@/types";
 import { cardStyle, CompetitorCard, MarketAnalysisCard, RecommendationCard } from "@/components/chat/selection-tool-cards";
+import SkillProposalCard from "@/components/chat/skill-proposal-card";
 
 function CopyToolCard({ call }: { call: ToolCallRecord }) {
   if (call.status === "running") {
@@ -107,7 +108,7 @@ function GenericToolCard({ call }: { call: ToolCallRecord }) {
   return <div className={cardStyle("green")}>✓ {call.label}已完成。</div>;
 }
 
-export default function ToolCard({ call }: { call: ToolCallRecord }) {
+export default function ToolCard({ call, messageId }: { call: ToolCallRecord; messageId?: string }) {
   if (call.toolName === COPY_TOOL_NAME) return <CopyToolCard call={call} />;
   if (call.toolName === SCRIPT_TOOL_NAME) return <ScriptToolCard call={call} />;
   if (call.toolName === LIVE_SCRIPT_TOOL_NAME) return <LiveScriptToolCard call={call} />;
@@ -115,5 +116,6 @@ export default function ToolCard({ call }: { call: ToolCallRecord }) {
   if (call.toolName === RECOMMEND_TOOL_NAME) return <RecommendationCard call={call} />;
   if (call.toolName === COMPETITOR_TOOL_NAME) return <CompetitorCard call={call} />;
   if (call.toolName === IMAGE_TOOL_NAME || call.toolName === IMAGE_VARIANT_TOOL_NAME) return <ImageToolCard call={call} />;
+  if (call.toolName === PROPOSE_SKILL_TOOL_NAME) return <SkillProposalCard call={call} messageId={messageId} />;
   return <GenericToolCard call={call} />;
 }

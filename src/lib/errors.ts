@@ -19,3 +19,11 @@ export class ValidationError extends AppError {
     this.name = "ValidationError";
   }
 }
+
+// 冲突错误：如创建同名但内容不同的技能时，返回 409 提示用户改名或先删除旧技能。
+export class ConflictError extends AppError {
+  constructor(message: string) {
+    super(message, "CONFLICT", 409);
+    this.name = "ConflictError";
+  }
+}

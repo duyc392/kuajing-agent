@@ -21,7 +21,7 @@ export default function MessageBubble({ message, streaming = false }: MessageBub
         {message.toolCalls && message.toolCalls.length > 0 && (
           <div className="mb-2 grid gap-2">
             {message.toolCalls.map((call) => (
-              <ToolCard key={call.id} call={call} />
+              <ToolCard key={call.id} call={call} messageId={message.id} />
             ))}
           </div>
         )}

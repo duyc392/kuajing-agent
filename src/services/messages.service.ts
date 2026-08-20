@@ -1,6 +1,7 @@
 // 用途：消息持久化（不含 Agent 调用）：按店铺隔离读取/写入消息、首条消息自动命名；所有查询带 shopId 关系过滤（铁律），用户消息落库时同步刷新对话活跃时间。
 import type { Message } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { NotFoundError } from "@/lib/errors";
 import { getConversation } from "@/services/conversations.service";
 import { DEFAULT_CONVERSATION_TITLE } from "@/types";
 import type { HistoryItem, MessageRole, MessageView, ToolCallRecord } from "@/types";
@@ -122,4 +123,39 @@ export async function recordAgentMessage(params: {
     },
   });
   return toView(row);
+}
+
+// 更新某条消息中单个工具调用的提议状态（技能提议卡的确认/忽略结果持久化）：按消息 id + 所属店铺校验归属后改写 toolCalls JSON。
+export async function updateMessageToolCall(params: {
+  messageId: string;
+  shopId: string;
+  toolCallId: string;
+  proposalState: "confirmed" | "ignored";
+  skillId?: string;
+}): Promise<MessageView> {
+  const message = await prisma.message.findFirst({
+    where: { id: params.messageId, conversation: { is: { shopId: params.shopId } } },
+  });
+  if (!message) throw new NotFoundError("消息不存在");
+  let calls: ToolCallRecord[] = [];
+  if (message.toolCalls) {
+    try {
+      const parsed: unknown = JSON.parse(message.toolCalls);
+      if (Array.isArray(parsed)) calls = parsed as ToolCallRecord[];
+    } catch {
+      // 历史脏数据按无工具记录处理。
+    }
+  }
+  const index = calls.findIndex((call) => call.id === params.toolCallId);
+  if (index === -1) throw new NotFoundError("工具调用记录不存在");
+  calls[index] = {
+    ...calls[index],
+    proposalState: params.proposalState,
+    ...(params.skillId ? { skillId: params.skillId } : {}),
+  };
+  const updated = await prisma.message.update({
+    where: { id: params.messageId },
+    data: { toolCalls: JSON.stringify(calls) },
+  });
+  return toView(updated);
 }

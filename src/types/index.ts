@@ -11,4 +11,5 @@ export * from "./memory";
 export * from "./selection";
 export * from "./image";
 export * from "./dashboard";
+export * from "./skill";
 export * from "./agent";

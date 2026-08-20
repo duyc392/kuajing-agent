@@ -4,6 +4,7 @@ import { createVideoScriptTool } from "@/agent/tools/script";
 import { createLiveScriptTool } from "@/agent/tools/live-script";
 import { createCompetitorTool, createMarketTool, createRecommendTool } from "@/agent/tools/selection";
 import { createImageVariantTool, createProductImageTool } from "@/agent/tools/image";
+import { createProposeSkillTool } from "@/agent/tools/skill";
 
 export function buildAgentTools(deps: CopywritingToolDeps) {
   return [
@@ -15,5 +16,6 @@ export function buildAgentTools(deps: CopywritingToolDeps) {
     createCompetitorTool(deps),
     createProductImageTool(deps),
     createImageVariantTool(deps),
+    createProposeSkillTool(),
   ];
 }

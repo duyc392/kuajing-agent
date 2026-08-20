@@ -12,6 +12,7 @@ import { callWithGenerationAudit, generateTextOnce } from "@/agent/generate";
 import { extractMemories } from "@/agent/memory/extractor";
 import { escapePromptData } from "@/agent/prompts/escape";
 import { buildSystemPrompt } from "@/agent/prompts/system";
+import { loadSkillsBlock } from "@/agent/skills";
 import type { ChatStreamEvent, GenerateTextFn, HistoryItem, MemoryEntryView, MessageView } from "@/types";
 
 const FAUX_ENV = "KUAJING_AGENT_FAUX";
@@ -183,8 +184,10 @@ async function runReplyTurn(params: AgentReplyParams, push: (event: ChatStreamEv
     const shop = await getShop(params.shopId);
     // 系统提示词注入当前店铺的长期记忆（PRD 故事 40：跨对话记住店铺信息，自动应用），并受条数上限约束。
     const memories = (await listMemories(params.shopId)).slice(-MAX_CONTEXT_MEMORIES);
+    // 已启用技能注入系统提示词（PRD 故事 46/47：确认沉淀的技能自动复用，启用状态在设置页控制）。
+    const skillsBlock = await loadSkillsBlock();
     const { text, toolCalls } = await runAgentTurn({
-      systemPrompt: buildSystemPrompt({ name: shop.name, market: shop.market, description: shop.description, memories }),
+      systemPrompt: buildSystemPrompt({ name: shop.name, market: shop.market, description: shop.description, memories, skillsBlock }),
       history,
       content: params.content,
       shopId: params.shopId,

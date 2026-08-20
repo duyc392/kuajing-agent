@@ -2,6 +2,7 @@
 export type MessageRole = "user" | "agent";
 
 // 一次工具调用的记录：历史消息卡片渲染数据；status 为 running 时仅存在于流式过程，落库的只有 done / error。
+// proposalState / skillId 仅技能提议卡使用：确认或忽略的结果持久化到消息 toolCalls JSON，刷新后卡片按服务端状态渲染，不再只依赖内存。
 export interface ToolCallRecord {
   id: string;
   toolName: string;
@@ -10,6 +11,8 @@ export interface ToolCallRecord {
   status: "running" | "done" | "error";
   details?: unknown;
   error?: string;
+  proposalState?: "pending" | "confirmed" | "ignored";
+  skillId?: string;
 }
 
 export interface MessageView {
