@@ -5,11 +5,13 @@ export async function streamChatRequest(
   path: string,
   body: unknown,
   onEvent: (event: ChatStreamEvent) => void,
+  signal?: AbortSignal,
 ): Promise<void> {
   const response = await fetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    signal,
   });
   if (!response.ok || !response.body) {
     const data: unknown = await response.json().catch(() => ({}));
@@ -30,7 +32,8 @@ export async function streamChatRequest(
       try {
         onEvent(JSON.parse(part.slice(6)) as ChatStreamEvent);
       } catch {
-        // 非完整 JSON 行（跨块截断的罕见场景）跳过，等待下一段补齐。
+        // 完整帧解析失败属于数据损坏：抛出友好错误由对话面板统一收口，不静默丢弃（否则会丢失 tool_end / done，状态卡停留）。
+        throw new Error("对话流数据格式异常，请重试");
       }
     }
   }

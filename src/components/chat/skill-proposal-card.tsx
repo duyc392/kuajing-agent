@@ -7,6 +7,7 @@ import { useRef, useState } from "react";
 import { apiRequest } from "@/lib/api-client";
 import { useShops } from "@/components/shop/shop-context";
 import type { SkillProposalDetails, SkillView, ToolCallRecord } from "@/types";
+import ToolStatusCard from "@/components/chat/tool-status-card";
 
 export default function SkillProposalCard({ call, messageId }: { call: ToolCallRecord; messageId?: string }) {
   const { currentShopId } = useShops();
@@ -16,14 +17,12 @@ export default function SkillProposalCard({ call, messageId }: { call: ToolCallR
   const busyRef = useRef(false);
   const phase = localPhase ?? call.proposalState ?? "pending";
 
-  if (call.status === "running") {
-    return <div className="animate-pulse rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">⚙ {call.label}中…</div>;
-  }
-  if (call.status === "error") {
-    return <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">✗ {call.label}失败：{call.error ?? "请重试"}</div>;
-  }
+  if (call.status === "running") return <ToolStatusCard label={call.label} status="running" />;
+  if (call.status === "error") return <ToolStatusCard label={call.label} status="error" error={call.error} />;
   const details = call.details as SkillProposalDetails | undefined;
-  if (!details) return null;
+  if (!details || typeof details.name !== "string" || typeof details.prompt !== "string") {
+    return <ToolStatusCard label={call.label} status="invalid" />;
+  }
   const proposal: SkillProposalDetails = details;
 
   async function persist(state: "confirmed" | "ignored", skillId?: string) {

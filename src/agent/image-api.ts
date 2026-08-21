@@ -71,33 +71,50 @@ function validateImageBytes(bytes: Buffer): { bytes: Buffer; mimeType: string } 
   return { bytes, mimeType };
 }
 
-// 下载 url 形态的图片：地址与重定向目标都过 SSRF 检查；外部取消信号贯通每次尝试。
+// 下载 url 形态的图片：手动跟随重定向（每跳先解析并校验 Location 再发下一次请求，杜绝自动重定向把请求带进内网，形成盲 SSRF）；
+// 读取前先看 Content-Length，超过上限直接拒绝，避免超大响应完整读进内存；外部取消信号贯通每次尝试。
+const MAX_REDIRECTS = 3;
+
+async function fetchWithManualRedirects(url: string, signal?: AbortSignal): Promise<Response> {
+  let current = url;
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const parsed = new URL(current);
+    if (await isUnsafeImageUrl(parsed)) {
+      throw new AppError("图片下载地址不安全，已拒绝下载", "IMAGE_UNSAFE_URL", 502);
+    }
+    const { signal: requestSignal, cleanup } = combinedSignal(signal);
+    try {
+      const response = await fetch(parsed, { signal: requestSignal, redirect: "manual" });
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get("location");
+        if (!location) throw new AppError("图片下载重定向异常，请重试", "IMAGE_DOWNLOAD", 502);
+        current = new URL(location, parsed).toString();
+        continue;
+      }
+      return response;
+    } finally {
+      cleanup();
+    }
+  }
+  throw new AppError("图片下载重定向次数过多，已拒绝", "IMAGE_UNSAFE_URL", 502);
+}
+
 async function downloadImageBytes(url: string, signal?: AbortSignal): Promise<GeneratedImageBytes> {
   let lastError: unknown = null;
   for (let attempt = 0; attempt < DOWNLOAD_ATTEMPTS; attempt++) {
     try {
-      const parsed = new URL(url);
-      if (await isUnsafeImageUrl(parsed)) {
-        throw new AppError("图片下载地址不安全，已拒绝下载", "IMAGE_UNSAFE_URL", 502);
+      const response = await fetchWithManualRedirects(url, signal);
+      if (!response.ok) throw statusError(response.status);
+      const contentLength = Number(response.headers.get("content-length"));
+      if (Number.isFinite(contentLength) && contentLength > IMAGE_MAX_BYTES) {
+        throw new AppError("图片文件超过 10MB 上限", "IMAGE_FORMAT", 502);
       }
-      const { signal: requestSignal, cleanup } = combinedSignal(signal);
-      try {
-        const response = await fetch(parsed, { signal: requestSignal });
-        // 重定向后的最终地址也要复查（防 302 跳进内网）。
-        const finalUrl = new URL(response.url);
-        if (await isUnsafeImageUrl(finalUrl)) {
-          throw new AppError("图片下载地址不安全，已拒绝下载", "IMAGE_UNSAFE_URL", 502);
-        }
-        if (!response.ok) throw statusError(response.status);
-        const bytes = Buffer.from(await response.arrayBuffer());
-        const validated = validateImageBytes(bytes);
-        return { bytes: validated.bytes, mimeType: validated.mimeType };
-      } finally {
-        cleanup();
-      }
+      const bytes = Buffer.from(await response.arrayBuffer());
+      const validated = validateImageBytes(bytes);
+      return { bytes: validated.bytes, mimeType: validated.mimeType };
     } catch (error) {
       lastError = error;
-      if (error instanceof AppError && error.code === "IMAGE_UNSAFE_URL") throw error;
+      if (error instanceof AppError && (error.code === "IMAGE_UNSAFE_URL" || error.code === "IMAGE_FORMAT")) throw error;
       if (attempt < DOWNLOAD_ATTEMPTS - 1) await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   }

@@ -2,6 +2,7 @@
 // 技能不属于特定店铺（Skill 表无 shopId），故无 shopId 隔离；写文件用临时文件 + 原子改名并在失败时清理临时文件，文件写入失败时回滚已建元数据，杜绝出现指向缺失文件的技能。
 import { promises as fs } from "fs";
 import path from "path";
+import { randomUUID } from "crypto";
 import type { Skill } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { AppError, ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
@@ -100,7 +101,7 @@ function sanitizeFilename(name: string): string {
 
 async function writeSkillFile(filename: string, content: string): Promise<void> {
   const filePath = skillPath(filename);
-  const tmpPath = `${filePath}.tmp`;
+  const tmpPath = `${filePath}.${randomUUID()}.tmp`;
   await fs.mkdir(SKILLS_DIR, { recursive: true });
   try {
     await fs.writeFile(tmpPath, content, "utf-8");

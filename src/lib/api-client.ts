@@ -41,3 +41,37 @@ export async function apiRequest<T>(method: string, path: string, body?: unknown
     signal?.removeEventListener("abort", onOuterAbort);
   }
 }
+
+// 下载文件：GET 指定接口，把返回的二进制内容保存为本地文件；非 2xx 时解析 JSON 错误并抛出中文提示。
+// timeoutMs 允许调用方为大文件导出指定更长的等待时间，避免默认 15 秒对大数据误报超时。
+export async function downloadFile(path: string, filename: string, timeoutMs = TIMEOUT_MS): Promise<void> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(path, { method: "GET", signal: controller.signal });
+    if (!response.ok) {
+      let message = "导出失败，请稍后重试";
+      try {
+        const data = (await response.json()) as { error?: string };
+        if (typeof data.error === "string" && data.error !== "") message = data.error;
+      } catch {
+        // 响应体不是 JSON 时沿用默认提示。
+      }
+      throw new Error(message);
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw new Error("导出超时，请重试");
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}

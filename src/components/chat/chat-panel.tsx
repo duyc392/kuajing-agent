@@ -7,6 +7,7 @@ import { apiRequest } from "@/lib/api-client";
 import { streamChatRequest } from "@/lib/api-stream";
 import MessageBubble from "@/components/chat/message-bubble";
 import ToolCard from "@/components/chat/tool-card";
+import QuickCommands from "@/components/chat/quick-commands";
 import Loading from "@/components/shared/loading";
 import ErrorMessage from "@/components/shared/error-message";
 import { useShops } from "@/components/shop/shop-context";
@@ -48,7 +49,7 @@ interface ChatInputProps {
   onSubmit: () => void;
 }
 
-function ChatInput({ value, onChange, disabled, onSubmit }: ChatInputProps) {
+export function ChatInput({ value, onChange, disabled, onSubmit }: ChatInputProps) {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     onSubmit();
@@ -86,6 +87,8 @@ function ChatInput({ value, onChange, disabled, onSubmit }: ChatInputProps) {
 interface ChatPanelProps {
   conversationId: string;
   onTurnComplete?: () => void;
+  /** 抽屉懒创建场景：首条消息在历史加载完成后自动发送一次（正常对话不传）。 */
+  autoSendMessage?: string;
 }
 
 // 新内容出现时把消息区滚到底部。
@@ -129,10 +132,11 @@ interface StreamHandlerSetters {
   setMessages: (updater: (prev: MessageView[] | null) => MessageView[]) => void;
   setStreamText: (updater: (prev: string) => string) => void;
   setActiveTools: (updater: (prev: ToolCallRecord[]) => ToolCallRecord[]) => void;
-  setError: (message: string) => void;
+  failStream: (message: string) => void;
 }
 
-// SSE 流事件分派：把后端事件落到本地状态；工具开始/结束维护进行中的工具卡片列表。
+// SSE 流事件分派：把后端事件落到本地状态；工具开始/结束维护进行中的工具卡片列表；
+// error 与 done 一样清空流式残留与工具状态卡（经 failStream），避免"分析中……"卡片停留。
 function createStreamEventHandler(setters: StreamHandlerSetters) {
   return (event: ChatStreamEvent) => {
     if (event.type === "user") setters.setMessages((prev) => [...(prev ?? []), event.message]);
@@ -146,47 +150,116 @@ function createStreamEventHandler(setters: StreamHandlerSetters) {
       setters.setStreamText(() => "");
       setters.setActiveTools(() => []);
     }
-    if (event.type === "error") setters.setError(event.error);
+    if (event.type === "error") setters.failStream(event.error);
   };
 }
 
-export default function ChatPanel({ conversationId, onTurnComplete }: ChatPanelProps) {
-  const { currentShopId } = useShops();
-  const { messages, setMessages, error, setError, retry } = useConversationMessages(conversationId, currentShopId);
-  const [input, setInput] = useState("");
+interface UseChatSendArgs {
+  conversationId: string;
+  shopId: string | null;
+  messages: MessageView[] | null;
+  setMessages: React.Dispatch<React.SetStateAction<MessageView[] | null>>;
+  setError: React.Dispatch<React.SetStateAction<string>>;
+  autoSendMessage?: string;
+  onTurnComplete?: () => void;
+}
+
+// 返回随组件卸载才触发的取消信号：抽屉关闭不卸载组件，故进行中的流式回复不会被中断。
+function useAbortSignal(): AbortSignal | undefined {
+  const ref = useRef<AbortController | null>(null);
+  useEffect(() => {
+    ref.current = new AbortController();
+    return () => ref.current?.abort();
+  }, []);
+  return ref.current?.signal;
+}
+
+// 懒创建场景：等历史消息加载完成后再自动发送首条消息，避免与消息加载互相覆盖；每个组件实例只发一次。
+function useAutoSend(autoSendMessage: string | undefined, messages: MessageView[] | null, send: (content: string) => void) {
+  const sentRef = useRef(false);
+  useEffect(() => {
+    if (!autoSendMessage || messages === null || sentRef.current) return;
+    sentRef.current = true;
+    send(autoSendMessage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSendMessage, messages]);
+}
+
+// 发送与流式回复：维护发送锁、流式文本与工具状态；组件卸载时取消请求；懒创建时自动发送首条消息。
+function useChatSend(args: UseChatSendArgs) {
   const [sending, setSending] = useState(false);
   const sendingRef = useRef(false);
   const [streamText, setStreamText] = useState("");
   const [activeTools, setActiveTools] = useState<ToolCallRecord[]>([]);
-  const bottomRef = useRef<HTMLDivElement | null>(null);
-  const handleEvent = createStreamEventHandler({ setMessages, setStreamText, setActiveTools, setError });
 
-  useAutoScroll(bottomRef, [messages?.length, streamText, activeTools.length]);
+  // 失败收口：清空流式残留与进行中工具卡并提示；SSE 错误事件与请求异常统一走这里，避免"分析中……"卡片停留。
+  const failStream = (message: string) => {
+    setStreamText("");
+    setActiveTools([]);
+    args.setError(message);
+  };
 
-  async function handleSend() {
+  const handleEvent = createStreamEventHandler({
+    setMessages: args.setMessages,
+    setStreamText,
+    setActiveTools,
+    failStream,
+  });
+  const abortSignal = useAbortSignal();
+
+  async function send(content: string) {
     // sendingRef 同步锁：同一瞬间连点两次发送都会读到 sending=false 而发出两条消息，用 ref 立即占位。
-    if (sendingRef.current) return;
-    const content = input.trim();
-    if (content === "" || !currentShopId) return;
+    if (sendingRef.current || !args.shopId) return;
     sendingRef.current = true;
     setSending(true);
-    setInput("");
-    setError("");
+    args.setError("");
     setStreamText("");
     setActiveTools([]);
     try {
       await streamChatRequest(
-        `/api/conversations/${conversationId}/messages`,
-        { shopId: currentShopId, content },
+        `/api/conversations/${args.conversationId}/messages`,
+        { shopId: args.shopId, content },
         handleEvent,
+        abortSignal,
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "发送失败，请重试");
+      if (e instanceof Error && e.name === "AbortError") return;
+      failStream(e instanceof Error ? e.message : "发送失败，请重试");
     } finally {
       sendingRef.current = false;
       setSending(false);
-      onTurnComplete?.();
+      args.onTurnComplete?.();
     }
+  }
+
+  useAutoSend(args.autoSendMessage, args.messages, send);
+
+  return { sending, streamText, activeTools, send };
+}
+
+export default function ChatPanel({ conversationId, onTurnComplete, autoSendMessage }: ChatPanelProps) {
+  const { currentShopId } = useShops();
+  const { messages, setMessages, error, setError, retry } = useConversationMessages(conversationId, currentShopId);
+  const [input, setInput] = useState("");
+  const { sending, streamText, activeTools, send } = useChatSend({
+    conversationId,
+    shopId: currentShopId,
+    messages,
+    setMessages,
+    setError,
+    autoSendMessage,
+    onTurnComplete,
+  });
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  useAutoScroll(bottomRef, [messages?.length, streamText, activeTools.length]);
+
+  function handleSend() {
+    if (sending) return;
+    const content = input.trim();
+    if (content === "" || !currentShopId) return;
+    setInput("");
+    void send(content);
   }
 
   return (
@@ -197,6 +270,7 @@ export default function ChatPanel({ conversationId, onTurnComplete }: ChatPanelP
         {messages !== null && <MessageList messages={messages} activeTools={activeTools} streamText={streamText} bottomRef={bottomRef} />}
         {error && messages !== null && <div className="px-4 pb-3"><ErrorMessage message={error} /></div>}
       </div>
+      <QuickCommands disabled={sending || messages === null} onSend={send} />
       <ChatInput value={input} onChange={setInput} disabled={sending} onSubmit={handleSend} />
     </div>
   );

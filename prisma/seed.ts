@@ -60,7 +60,7 @@ const SHOPS: ShopSeed[] = [
         title: "分析美妆镜选品机会",
         messages: [
           { role: "user", content: "分析一下补光美妆镜在美国市场的机会" },
-          { role: "agent", content: "正在调用选品工具分析美区数据……（演示数据）", toolCalls: JSON.stringify([{ tool: "analyzeMarket", status: "running" }]) },
+          { role: "agent", content: "补光美妆镜在美国市场有增长机会，竞争度中等，利润空间可观。（演示数据）", toolCalls: JSON.stringify([{ id: "seed-market-1", toolName: "analyze_market", label: "市场分析", args: { keywords: ["补光美妆镜"], market: "美国" }, status: "done", details: { market: "美国", category: "补光美妆镜", capacity: "需求稳定增长（演示数据）", competition: "中等（演示数据）", growth: "同比增长（演示数据）", profit: "利润空间可观（演示数据）", dataHighlights: ["搜索量持续上升", "客单价 15-25 美元"] } }]) },
           { role: "user", content: "那帮我为这个商品生成一版英文文案" },
           { role: "agent", content: "已生成文案草稿，可到商品详情页的文案历史查看。（演示数据）" },
         ],
@@ -123,7 +123,7 @@ const SHOPS: ShopSeed[] = [
         title: "印尼站收纳选品讨论",
         messages: [
           { role: "user", content: "印尼站最近哪类收纳用品在涨？" },
-          { role: "agent", content: "折叠收纳箱搜索量上升，竞争度中等。（演示数据）", toolCalls: JSON.stringify([{ tool: "analyzeMarket", status: "done" }]) },
+          { role: "agent", content: "折叠收纳箱搜索量上升，竞争度中等。（演示数据）", toolCalls: JSON.stringify([{ id: "seed-market-2", toolName: "analyze_market", label: "市场分析", args: { keywords: ["收纳用品"], market: "东南亚-印尼" }, status: "done", details: { market: "东南亚-印尼", category: "收纳用品", capacity: "小户型收纳需求增长（演示数据）", competition: "中等（演示数据）", growth: "搜索量上升（演示数据）", profit: "性价比路线利润适中（演示数据）", dataHighlights: ["折叠收纳箱搜索量上升", "客单价 5-10 美元"] } }]) },
           { role: "user", content: "好，帮我把这个结论记下来" },
         ],
       },

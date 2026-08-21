@@ -13,6 +13,7 @@ import { extractMemories } from "@/agent/memory/extractor";
 import { escapePromptData } from "@/agent/prompts/escape";
 import { buildSystemPrompt } from "@/agent/prompts/system";
 import { loadSkillsBlock } from "@/agent/skills";
+import { formatKnowledgeBlock, retrieveKnowledge } from "@/agent/knowledge";
 import type { ChatStreamEvent, GenerateTextFn, HistoryItem, MemoryEntryView, MessageView } from "@/types";
 
 const FAUX_ENV = "KUAJING_AGENT_FAUX";
@@ -186,8 +187,10 @@ async function runReplyTurn(params: AgentReplyParams, push: (event: ChatStreamEv
     const memories = (await listMemories(params.shopId)).slice(-MAX_CONTEXT_MEMORIES);
     // 已启用技能注入系统提示词（PRD 故事 46/47：确认沉淀的技能自动复用，启用状态在设置页控制）。
     const skillsBlock = await loadSkillsBlock();
+    // 领域知识注入（PRD 故事 33）：按本轮问题检索知识片段并拼进系统提示词，供模型引用回答。
+    const knowledgeBlock = formatKnowledgeBlock(await retrieveKnowledge(params.content));
     const { text, toolCalls } = await runAgentTurn({
-      systemPrompt: buildSystemPrompt({ name: shop.name, market: shop.market, description: shop.description, memories, skillsBlock }),
+      systemPrompt: buildSystemPrompt({ name: shop.name, market: shop.market, description: shop.description, memories, skillsBlock, knowledgeBlock }),
       history,
       content: params.content,
       shopId: params.shopId,
@@ -206,7 +209,13 @@ async function runReplyTurn(params: AgentReplyParams, push: (event: ChatStreamEv
     });
     push({ type: "done", agentMessage });
   } catch (error) {
-    push({ type: "error", error: error instanceof Error ? error.message : "Agent 回复失败，请重试" });
+    // 只透传 AppError（含 NotFound/Validation 子类）的用户安全消息；未知异常（Prisma/网络等）记服务端日志，前端只给固定提示，不泄露内部细节。
+    if (error instanceof AppError) {
+      push({ type: "error", error: error.message });
+    } else {
+      console.error("[chat] 回复失败（内部错误）:", error);
+      push({ type: "error", error: "Agent 回复失败，请稍后重试" });
+    }
   } finally {
     // 无论成功失败都释放回合锁与全局并发名额。
     if (slotHeld) releaseTurnSlot();

@@ -203,7 +203,8 @@ function FastmossSection({ status, form, update }: SectionProps) {
   );
 }
 
-export default function ApiKeyForm() {
+export default function ApiKeyForm({ variant = "onboarding" }: { variant?: "onboarding" | "settings" }) {
+  const isSettings = variant === "settings";
   const { form, status, saving, message, update, handleSave } = useKeysForm();
 
   if (status === null) {
@@ -234,7 +235,7 @@ export default function ApiKeyForm() {
           <button type="submit" disabled={disabled} className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
             {saving ? "保存中…" : "保存配置"}
           </button>
-          {status.allConfigured && (
+          {status.allConfigured && !isSettings && (
             <Link href="/create-shop" className="rounded-lg bg-green-600 px-5 py-2 text-sm font-medium text-white hover:bg-green-700">
               下一步：创建店铺 →
             </Link>
@@ -242,7 +243,9 @@ export default function ApiKeyForm() {
         </div>
       </div>
       <p className="text-center text-xs text-gray-400">
-        {status.allConfigured ? "三项服务均已配置。" : "三项服务都配置完成后，才会出现「下一步」按钮。"}
+        {isSettings
+          ? (status.allConfigured ? "三项服务均已配置。" : "三项服务尚未全部配置。")
+          : (status.allConfigured ? "三项服务均已配置。" : "三项服务都配置完成后，才会出现「下一步」按钮。")}
         {!dirty && " 填写或修改任意配置后即可保存。"}
       </p>
     </form>

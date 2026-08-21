@@ -23,6 +23,7 @@
     "@earendil-works/pi-agent-core": "^0.84.2",
     "@earendil-works/pi-ai": "^0.84.2",
     "@prisma/client": "^5.18.0",
+    "exceljs": "^4.4.0",
     "next": "^14.2.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -38,5 +39,8 @@
     "tailwindcss": "^3.4.7",
     "tsx": "^4.19.0",
     "typescript": "^5.5.4"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
   }
 }

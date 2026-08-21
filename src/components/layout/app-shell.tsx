@@ -1,9 +1,9 @@
-// 用途：全局布局外壳：顶部 Header（导航 + 店铺切换器）、可选左侧对话列表、可滚动主内容区、右下角全局 Agent 入口；店铺上下文加载失败时整壳降级为错误重试页。
+// 用途：全局布局外壳：顶部 Header（导航 + 店铺切换器）、可选左侧对话列表、可滚动主内容区；店铺上下文加载失败时整壳降级为错误重试页。
+// 全局 Agent 抽屉已上移到根布局统一挂载，此处不再重复渲染。
 "use client";
 
 import type { ReactNode } from "react";
 import Header from "@/components/layout/header";
-import AgentDrawer from "@/components/chat/agent-drawer";
 import Loading from "@/components/shared/loading";
 import ErrorMessage from "@/components/shared/error-message";
 import { useShops } from "@/components/shop/shop-context";
@@ -41,7 +41,6 @@ export default function AppShell({ children, sidebar }: AppShellProps) {
         {sidebar}
         <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>
       </div>
-      <AgentDrawer />
     </div>
   );
 }

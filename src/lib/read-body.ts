@@ -1,4 +1,5 @@
 // 用途：统一请求体读取：所有写接口用它替代 request.json()——限制总字节数（防内存膨胀）、限制总读取时长（防客户端"声明了但发不完"把连接挂死）。
+// 整个读取只创建一个定时器，到点通过取消 reader 让挂起的 read() 结束；finally 统一清除，避免每个分块泄漏一个定时器。
 import { AppError, ValidationError } from "@/lib/errors";
 
 const DEFAULT_MAX_BYTES = 256 * 1024;
@@ -13,17 +14,16 @@ export async function readJsonBody(
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
-  const deadline = Date.now() + timeoutMs;
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    void reader.cancel().catch(() => undefined);
+  }, timeoutMs);
   try {
     while (true) {
-      const remaining = deadline - Date.now();
-      if (remaining <= 0) throw new AppError("请求体读取超时，请重试", "BODY_TIMEOUT", 408);
-      const result = await Promise.race([
-        reader.read(),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new AppError("请求体读取超时，请重试", "BODY_TIMEOUT", 408)), remaining),
-        ),
-      ]);
+      if (timedOut) throw new AppError("请求体读取超时，请重试", "BODY_TIMEOUT", 408);
+      const result = await reader.read();
+      if (timedOut) throw new AppError("请求体读取超时，请重试", "BODY_TIMEOUT", 408);
       if (result.done) break;
       total += result.value.byteLength;
       if (total > maxBytes) throw new AppError("请求体过大（上限 256KB）", "BODY_TOO_LARGE", 413);
@@ -38,5 +38,7 @@ export async function readJsonBody(
   } catch (error) {
     await reader.cancel().catch(() => undefined);
     throw error;
+  } finally {
+    clearTimeout(timer);
   }
 }

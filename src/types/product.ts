@@ -28,6 +28,7 @@ export interface ProductSummary {
   price: number | null;
   variantCount: number;
   copyCount: number;
+  createdAt: string;
 }
 
 // 用途：变体与详情视图类型：变体的创建 / 更新契约、列表行与商品详情（含变体、文案版本）的展示结构。

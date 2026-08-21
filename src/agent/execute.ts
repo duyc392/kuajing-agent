@@ -83,6 +83,8 @@ function wireAgentEvents(
       });
     }
     if (event.type === "tool_execution_end") {
+      // 工具执行异常的原始结果只记服务端日志，前端卡片只展示脱敏后的中文提示，不泄露内部细节。
+      if (event.isError) console.error("[agent] 工具执行失败:", event.toolName, event.result);
       const record: ToolCallRecord = {
         id: event.toolCallId,
         toolName: event.toolName,

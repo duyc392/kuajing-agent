@@ -1,23 +1,9 @@
 // 用途：选品调研工具卡（PRD 故事 13-15 与故事 8 工具调用可见）：市场分析 / 选品推荐 / 竞品分析的结构化报告展示。
-// 运行中显示状态卡，完成后渲染四维度结论、推荐项或竞品对比六要素。
+// 运行中/失败/格式异常统一走 ToolStatusCard，完成态渲染四维度结论、推荐项或竞品对比六要素；缺失字段回退到格式异常卡。
 "use client";
 
 import type { CompetitorDetails, MarketAnalysisDetails, RecommendationDetails, ToolCallRecord } from "@/types";
-
-export function cardStyle(tone: "blue" | "green" | "red"): string {
-  if (tone === "blue") return "rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700";
-  if (tone === "red") return "rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600";
-  return "rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700";
-}
-
-function RunningCard({ label, args }: { label: string; args: Record<string, unknown> | null }) {
-  const market = typeof args?.market === "string" ? args.market : "";
-  return <div className={`${cardStyle("blue")} animate-pulse`}>⚙ {label}中…{market !== "" ? `（${market}）` : ""}</div>;
-}
-
-function ErrorCard({ label, error }: { label: string; error?: string }) {
-  return <div className={cardStyle("red")}>✗ {label}失败：{error ?? "请重试"}</div>;
-}
+import ToolStatusCard, { cardStyle } from "@/components/chat/tool-status-card";
 
 function DimensionRow({ label, value }: { label: string; value: string }) {
   return (
@@ -28,11 +14,18 @@ function DimensionRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function runningMeta(args: unknown): string {
+  const market = (args as { market?: unknown } | null)?.market;
+  return typeof market === "string" && market !== "" ? `（${market}）` : "";
+}
+
 export function MarketAnalysisCard({ call }: { call: ToolCallRecord }) {
-  if (call.status === "running") return <RunningCard label={call.label} args={(call.args as Record<string, unknown>) ?? null} />;
-  if (call.status === "error") return <ErrorCard label={call.label} error={call.error} />;
+  if (call.status === "running") return <ToolStatusCard label={call.label} status="running" meta={runningMeta(call.args)} />;
+  if (call.status === "error") return <ToolStatusCard label={call.label} status="error" error={call.error} />;
   const details = call.details as MarketAnalysisDetails | undefined;
-  if (!details) return null;
+  if (!details || typeof details.market !== "string" || !Array.isArray(details.dataHighlights)) {
+    return <ToolStatusCard label={call.label} status="invalid" />;
+  }
   return (
     <div className={cardStyle("green")}>
       <p className="font-medium text-gray-900">📊 市场分析 · {details.market} · {details.category}</p>
@@ -50,10 +43,12 @@ export function MarketAnalysisCard({ call }: { call: ToolCallRecord }) {
 }
 
 export function RecommendationCard({ call }: { call: ToolCallRecord }) {
-  if (call.status === "running") return <RunningCard label={call.label} args={(call.args as Record<string, unknown>) ?? null} />;
-  if (call.status === "error") return <ErrorCard label={call.label} error={call.error} />;
+  if (call.status === "running") return <ToolStatusCard label={call.label} status="running" meta={runningMeta(call.args)} />;
+  if (call.status === "error") return <ToolStatusCard label={call.label} status="error" error={call.error} />;
   const details = call.details as RecommendationDetails | undefined;
-  if (!details) return null;
+  if (!details || typeof details.market !== "string" || !Array.isArray(details.recommendations)) {
+    return <ToolStatusCard label={call.label} status="invalid" />;
+  }
   return (
     <div className={cardStyle("green")}>
       <p className="font-medium text-gray-900">💡 选品方向推荐 · {details.market}</p>
@@ -69,10 +64,12 @@ export function RecommendationCard({ call }: { call: ToolCallRecord }) {
 }
 
 export function CompetitorCard({ call }: { call: ToolCallRecord }) {
-  if (call.status === "running") return <RunningCard label={call.label} args={(call.args as Record<string, unknown>) ?? null} />;
-  if (call.status === "error") return <ErrorCard label={call.label} error={call.error} />;
+  if (call.status === "running") return <ToolStatusCard label={call.label} status="running" meta={runningMeta(call.args)} />;
+  if (call.status === "error") return <ToolStatusCard label={call.label} status="error" error={call.error} />;
   const details = call.details as CompetitorDetails | undefined;
-  if (!details) return null;
+  if (!details || typeof details.shopName !== "string") {
+    return <ToolStatusCard label={call.label} status="invalid" />;
+  }
   return (
     <div className={cardStyle("green")}>
       <p className="font-medium text-gray-900">🏪 竞品分析 · {details.shopName}</p>
