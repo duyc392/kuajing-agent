@@ -2,8 +2,8 @@
 
 开源、本地部署、单人使用的 TikTok 跨境电商 AI 运营工作台。核心是一个具备领域知识、长期记忆和持续学习能力的 Agent，通过自然语言对话完成选品调研、商品文案与素材生成、内容策划与脚本创作、店铺运营优化四类工作。数据全部保存在你自己的电脑上。
 
-> 产品需求文档（PRD）见工作区根目录的 `PRD-v2.txt`。
-> 当前仓库为工程骨架：目录结构和配置文件已就绪，页面与业务代码为占位实现。
+> 产品需求文档（PRD）见项目根目录的 `PRD-v2.txt`。
+> 当前仓库为可运行的完整实现：对话中枢、选品调研、文案与素材、内容脚本、数据看板、记忆与技能体系均已交付。
 
 ## 功能一览
 
@@ -66,7 +66,7 @@ npm run dev            # 打开 http://localhost:3000
 - 数据库：`data/kuajing.db`（SQLite 单文件），备份 = 复制这个文件；数据库只存文字与记录，不存图片文件本身
 - 密钥配置：`data/config.json`（服务端本地文件）
 - Agent 技能：`skills/` 目录下的 .md 文件
-- 领域知识：`knowledge/` 目录下的 .md 文件，对话时本地检索、只注入相关片段（轻量 RAG），不全量塞入系统提示词
+- 领域知识：`src/agent/knowledge/` 目录下的 .md 文件，对话时本地检索、只注入相关片段（轻量 RAG），不全量塞入系统提示词
 - 生成的图片：图片文件本体存 `public/generated/`，数据库里的图片记录只保存路径、用途与应用状态
 - 演示数据：`npm run db:seed` 会向空数据库写入演示店铺、商品、文案、脚本、对话、记忆与技能（仅本地开发演示用；数据库已有数据时自动跳过）
 
@@ -81,7 +81,7 @@ npm run dev            # 打开 http://localhost:3000
 | `src/types` | TypeScript 类型统一定义（业务域输入输出类型） |
 | `src/lib` | 基础设施：数据库客户端、本地配置、工具函数、统一错误、请求封装 |
 | `src/config` | 模型与市场等静态配置 |
-| `knowledge` | 内置领域知识 .md 文件（轻量 RAG 检索源） |
+| `src/agent/knowledge` | 内置领域知识 .md 文件（轻量 RAG 检索源） |
 | `prisma` | 数据库 schema 与演示数据填充脚本（Prisma + SQLite） |
 
 ## 技术栈
@@ -90,8 +90,6 @@ Next.js 14 (App Router) · TypeScript · Tailwind CSS · shadcn/ui · zod · Pri
 
 > 组件目录约定：shadcn 基础组件（button、input、card、dialog 等）由 shadcn CLI 生成到 `src/components/ui/`；项目自己的共享组件放 `src/components/shared/`。
 > 图片生成入口：生成图片走 Agent 对话（生图工具调用 gpt-image-2），不经过 `api/images`；`api/images` 只负责图片档案的查询 / 应用 / 删除。
-
-> 注意：`src/agent/` 目录是 Pi Agent Harness SDK 的封装层，目前为占位实现，SDK 包名确认后加入 package.json 依赖。
 
 ## 常见问题
 

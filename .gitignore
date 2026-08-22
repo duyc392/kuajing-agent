@@ -32,3 +32,6 @@ Thumbs.db
 
 # 启动日志
 logs/
+
+# 本地读码索引（cleanread 工具产物）
+cleanread/
