@@ -24,6 +24,11 @@ model Shop {
   conversations Conversation[]
   memories      MemoryEntry[]
   generations   Generation[]
+  productDnas        ProductDna[]
+  contentReferences  ContentReference[]
+  publishedVideos    PublishedVideo[]
+  videoReviews       VideoReview[]
+  shotRequirements   ShotRequirement[]
 }
 
 // 商品：属于某个店铺，支持变体。
@@ -42,6 +47,11 @@ model Product {
   variants  ProductVariant[]
   images    ProductImage[]
   videoScripts VideoScript[]
+  // 内容运营反向关联：只是声明，不增加数据库列；商品删除时级联删除下列数据。
+  dna               ProductDna?
+  contentReferences ContentReference[]
+  publishedVideos   PublishedVideo[]
+  shotRequirements  ShotRequirement[]
 }
 
 // 商品变体：颜色、尺寸等组合，每个变体有 SKU 编码。
@@ -93,20 +103,28 @@ model ProductCopy {
 }
 
 // 视频脚本：分镜内容、钩子、CTA；shots 存 JSON 文本（SQLite 不支持 Json 类型）。
+// version 与 parentScriptId 支持 V1 → V2 迭代：V2 脚本指向它基于的上一版。
 model VideoScript {
   id        String   @id @default(cuid())
   shopId    String
   shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  productId String? // 可关联某个商品；商品删除时置空保留脚本（历史内容不随商品删除丢失）
-  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productId String? // 可关联某个商品；商品删除时级联清理关联脚本，避免内容孤岛。
+  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
   type      String // 开箱 / 教程 / 种草 / 对比
   duration  Int // 时长（秒）
   hook      String // 前 3 秒钩子文案
   cta       String // 结尾行动号召
   style     String? // 模仿的参考风格描述
   shots     String // 分镜内容，JSON 文本
+  version        Int     @default(1) // 版本号，首发为 1，复盘后的 V2 为 2
+  parentScriptId String? // 上一版脚本 ID（V2 指向 V1）；上一版删除时置空
+  parentScript   VideoScript?  @relation("ScriptVersions", fields: [parentScriptId], references: [id], onDelete: SetNull)
+  childScripts   VideoScript[] @relation("ScriptVersions")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  publishedVideos PublishedVideo[] @relation("VideoScriptPublished")
+  reviewGenerated VideoReview[]   @relation("ReviewGeneratedScript")
 }
 
 // 直播脚本：时长、商品列表、流程节点。
@@ -179,4 +197,107 @@ model Skill {
   enabled     Boolean  @default(true) // 是否启用
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// 商品 DNA：一个商品只有一份当前 DNA，结构化沉淀画像、场景、卖点等生成内容的共同底座；productId 唯一实现一对一。
+model ProductDna {
+  id                    String   @id @default(cuid())
+  shopId                String // 隔离键
+  shop                  Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  productId             String   @unique
+  product               Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  targetPersona         String // 核心用户画像
+  useScenarios          String // 核心使用场景
+  coreSellingPoints     String // 核心卖点
+  visualHooks           String // 视觉冲击效果
+  recommendedFormats    String // 推荐视频呈现方式
+  competitorDifferences String // 竞品差异
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// 爆款内容拆解：采集的同行爆款视频的结构化拆解，作为选题与脚本的参照。
+model ContentReference {
+  id                    String   @id @default(cuid())
+  shopId                String // 隔离键
+  shop                  Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  productId             String
+  product               Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sourceVideoId         String? // 外部视频编号
+  sourceUrl             String? // 外部视频地址
+  title                 String // 标题
+  angle                 String // 内容类型：开箱 / 教程 / 种草 / 对比
+  playCount             Int // 播放量
+  conversionRate        Float? // 转化率（百分比）
+  completionRate        Float? // 完播率（百分比）
+  hook                  String // 开头钩子
+  sellingPoint          String? // 核心卖点
+  highFrequencyQuestion String? // 高频问题
+  cta                   String // 行动号召
+  collectedAt           DateTime // 采集时间
+  createdAt             DateTime @default(now())
+}
+
+// 已发布视频：卖家自己发布视频的投放数据；retentionData 存秒级留存数组（JSON 文本，SQLite 不支持 Json 类型）。
+model PublishedVideo {
+  id              String    @id @default(cuid())
+  shopId          String // 隔离键
+  shop            Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  scriptId        String? // 对应的视频脚本；脚本删除时置空保留视频数据
+  script          VideoScript? @relation("VideoScriptPublished", fields: [scriptId], references: [id], onDelete: SetNull)
+  platformVideoId String? // 平台视频编号
+  title           String // 视频标题或 Hook
+  angle           String // 视频类型：开箱 / 教程 / 种草 / 对比
+  durationSeconds Int // 视频时长（秒）
+  playCount       Int // 播放量
+  orderCount      Int // 订单量
+  gmv             Float // 成交金额
+  completionRate  Float? // 完播率（百分比）
+  status          String // 在跑 / 停止
+  retentionData   String // 秒级留存数组，JSON 文本，如 [100,86,74,...]
+  publishedAt     DateTime? // 发布时间
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  review VideoReview?
+}
+
+// 视频复盘：一条已发布视频对应一份复盘；publishedVideoId 唯一实现一对一，视频删除时级联删除。
+// suggestions 存建议列表（JSON 文本）。
+model VideoReview {
+  id                 String         @id @default(cuid())
+  shopId             String // 隔离键
+  shop               Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  publishedVideoId   String         @unique
+  publishedVideo     PublishedVideo @relation(fields: [publishedVideoId], references: [id], onDelete: Cascade)
+  dropPointSeconds   Float? // 主要流失秒数
+  dropRate           Float? // 流失比例（百分比）
+  summary            String // 问题总结
+  suggestions        String // 建议列表，JSON 文本
+  generatedScriptId  String? // 复盘后生成的 V2 脚本；脚本删除时置空
+  generatedScript    VideoScript?   @relation("ReviewGeneratedScript", fields: [generatedScriptId], references: [id], onDelete: SetNull)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+// 素材需求：按镜头拆出的拍摄任务；scriptIds 存共用该镜头的脚本 ID（JSON 数组文本），不建关联表。
+// shopId + productId + shotCode 唯一：同一商品内镜头编号稳定，重复同步（并发/重试）只插入一次的兜底。
+model ShotRequirement {
+  id                String   @id @default(cuid())
+  shopId            String // 隔离键
+  shop              Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  productId         String
+  product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  shotCode          String // 镜头编号，如 S01
+  scene             String // 拍摄场景
+  actionDescription String // 景别与动作
+  propsAndLighting  String // 道具与打光
+  scriptIds         String // 共用脚本 ID，JSON 数组文本
+  status            String // 待拍摄 / 拍摄中 / 已完成 / 已归档
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([shopId, productId, shotCode])
 }

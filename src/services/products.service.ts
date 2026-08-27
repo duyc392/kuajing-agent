@@ -29,6 +29,7 @@ export async function listProducts(shopId: string): Promise<ProductSummary[]> {
       category: true,
       price: true,
       createdAt: true,
+      dna: { select: { id: true } },
       _count: { select: { variants: true, copies: true } },
     },
   });
@@ -39,6 +40,7 @@ export async function listProducts(shopId: string): Promise<ProductSummary[]> {
     price: row.price,
     variantCount: row._count.variants,
     copyCount: row._count.copies,
+    dnaBuilt: row.dna !== null,
     createdAt: row.createdAt.toISOString(),
   }));
 }

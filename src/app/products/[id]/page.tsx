@@ -1,15 +1,6 @@
-// 用途：商品详情页，含"详情 / 变体 / 文案历史"标签页与编辑、删除操作。
-import AppShell from "@/components/layout/app-shell";
-import ProductDetail from "@/components/products/product-detail";
-
-export const metadata = {
-  title: "商品详情 · TikTok 跨境电商工作台",
-};
+// 用途：旧商品详情路由：不再维护第二套详情 UI，统一跳转到工作区并选中该商品（/products?productId=[id]）。
+import { redirect } from "next/navigation";
 
 export default function ProductDetailPage({ params }: { params: { id: string } }) {
-  return (
-    <AppShell>
-      <ProductDetail productId={params.id} />
-    </AppShell>
-  );
+  redirect(`/products?productId=${params.id}`);
 }

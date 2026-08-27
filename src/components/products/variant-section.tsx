@@ -1,4 +1,4 @@
-// 用途：变体管理区：列出商品全部变体（SKU、颜色、尺寸、价格、库存），支持新增、行内编辑、删除。
+// 用途：变体管理区：以表格列出商品全部变体（SKU、颜色/风格、变体价格、库存数量、状态），支持新增、行内编辑、删除。
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -10,6 +10,13 @@ import VariantForm from "@/components/products/variant-form";
 import type { VariantFormValues } from "@/components/products/variant-form";
 import type { VariantView } from "@/types";
 
+// 库存推导的显示状态：>0 在售，=0 售罄，未设置显示提示；数据库中无独立上架状态。
+function stockStatus(stock: number | null): { label: string; className: string } | null {
+  if (stock === null) return null;
+  if (stock > 0) return { label: "在售", className: "bg-green-50 text-green-700" };
+  return { label: "售罄", className: "bg-gray-100 text-gray-500" };
+}
+
 interface VariantRowProps {
   variant: VariantView;
   basePrice: number | null;
@@ -19,25 +26,29 @@ interface VariantRowProps {
 }
 
 function VariantRow({ variant, basePrice, busy, onEdit, onDelete }: VariantRowProps) {
+  const status = stockStatus(variant.stock);
   return (
-    <li className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2">
-      <div className="min-w-0 text-sm">
-        <p className="font-medium text-gray-900">{variant.sku}</p>
-        <p className="text-xs text-gray-500">
-          {[variant.color, variant.size].filter(Boolean).join(" / ") || "无规格"}
-          {variant.price !== null ? ` · ¥${formatPrice(variant.price)}` : basePrice !== null ? ` · ¥${formatPrice(basePrice)}（默认）` : ""}
-          {variant.stock !== null ? ` · 库存 ${variant.stock}` : ""}
-        </p>
-      </div>
-      <div className="flex shrink-0 gap-2">
-        <button onClick={onEdit} disabled={busy} className="rounded-lg border border-gray-300 px-2.5 py-1 text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-50">
-          编辑
-        </button>
-        <button onClick={onDelete} disabled={busy} className="rounded-lg border border-red-200 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50">
-          删除
-        </button>
-      </div>
-    </li>
+    <tr className="border-b border-gray-100 last:border-b-0">
+      <td className="px-3 py-2.5 text-sm font-medium text-gray-900">{variant.sku}</td>
+      <td className="px-3 py-2.5 text-sm text-gray-600">{[variant.color, variant.size].filter(Boolean).join(" / ") || "无规格"}</td>
+      <td className="px-3 py-2.5 text-sm text-gray-600">
+        {variant.price !== null ? `¥${formatPrice(variant.price)}` : basePrice !== null ? `¥${formatPrice(basePrice)}（默认）` : "—"}
+      </td>
+      <td className="px-3 py-2.5 text-sm text-gray-600">{variant.stock ?? "未设置"}</td>
+      <td className="px-3 py-2.5">
+        {status ? <span className={`rounded-full px-2 py-0.5 text-xs ${status.className}`}>{status.label}</span> : <span className="text-xs text-gray-400">待补充</span>}
+      </td>
+      <td className="px-3 py-2.5">
+        <div className="flex shrink-0 gap-2">
+          <button onClick={onEdit} disabled={busy} className="rounded-lg border border-gray-300 px-2.5 py-1 text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+            编辑
+          </button>
+          <button onClick={onDelete} disabled={busy} className="rounded-lg border border-red-200 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50">
+            删除
+          </button>
+        </div>
+      </td>
+    </tr>
   );
 }
 
@@ -124,38 +135,54 @@ interface VariantListProps {
 
 function VariantList({ variants, basePrice, editingId, busy, onEdit, onCancelEdit, onDelete, onSubmitEdit }: VariantListProps) {
   return (
-    <ul className="grid gap-2">
-      {variants.map((variant) =>
-        editingId === variant.id ? (
-          <li key={variant.id}>
-            <VariantForm
-              key={variant.id}
-              initial={variant}
-              submitting={busy}
-              submitLabel="保存修改"
-              onSubmit={onSubmitEdit}
-              onCancel={onCancelEdit}
-            />
-          </li>
-        ) : (
-          <VariantRow
-            key={variant.id}
-            variant={variant}
-            basePrice={basePrice}
-            busy={busy}
-            onEdit={() => onEdit(variant.id)}
-            onDelete={() => onDelete(variant)}
-          />
-        ),
-      )}
-    </ul>
+    <div className="overflow-x-auto rounded-xl border border-gray-200">
+      <table className="w-full border-collapse bg-white text-left">
+        <thead>
+          <tr className="border-b border-gray-100 bg-gray-50/70">
+            <th className="px-3 py-2 text-xs font-medium text-gray-500">SKU 编码</th>
+            <th className="px-3 py-2 text-xs font-medium text-gray-500">颜色 / 风格</th>
+            <th className="px-3 py-2 text-xs font-medium text-gray-500">变体价格</th>
+            <th className="px-3 py-2 text-xs font-medium text-gray-500">库存数量</th>
+            <th className="px-3 py-2 text-xs font-medium text-gray-500">状态</th>
+            <th className="px-3 py-2 text-xs font-medium text-gray-500">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {variants.map((variant) =>
+            editingId === variant.id ? (
+              <tr key={variant.id} className="border-b border-gray-100 last:border-b-0">
+                <td colSpan={6} className="p-3">
+                  <VariantForm
+                    key={variant.id}
+                    initial={variant}
+                    submitting={busy}
+                    submitLabel="保存修改"
+                    onSubmit={onSubmitEdit}
+                    onCancel={onCancelEdit}
+                  />
+                </td>
+              </tr>
+            ) : (
+              <VariantRow
+                key={variant.id}
+                variant={variant}
+                basePrice={basePrice}
+                busy={busy}
+                onEdit={() => onEdit(variant.id)}
+                onDelete={() => onDelete(variant)}
+              />
+            ),
+          )}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
 function EmptyVariantHint() {
   return (
     <p className="rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-400">
-      还没有变体。批量 SKU 生成（颜色 × 尺寸）将在后续版本上线，现在可以先手动添加。
+      还没有变体。点击下方「＋ 添加变体」，为颜色、尺寸等组合建立 SKU 编码。
     </p>
   );
 }
@@ -194,6 +221,14 @@ export default function VariantSection({ productId, shopId, basePrice, onVariant
 
   return (
     <div className="grid gap-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-semibold text-gray-900">🎁 商品 SKU 变体信息</h2>
+        {!showCreate && (
+          <button onClick={() => setShowCreate(true)} className="rounded-lg border border-blue-300 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50">
+            ＋ 添加变体
+          </button>
+        )}
+      </div>
       {error && <ErrorMessage message={error} onRetry={retry} />}
       {variants !== null && (
         <>
@@ -208,13 +243,9 @@ export default function VariantSection({ productId, shopId, basePrice, onVariant
             onDelete={handleDelete}
             onSubmitEdit={handleSubmit}
           />
-          {showCreate ? (
-            <VariantForm submitting={busy} submitLabel="添加变体" onSubmit={handleSubmit} onCancel={() => setShowCreate(false)} />
-          ) : (
-            <div>
-              <button onClick={() => setShowCreate(true)} className="rounded-lg border border-blue-200 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50">
-                ＋ 添加变体
-              </button>
+          {showCreate && (
+            <div className="rounded-xl border border-gray-200 bg-white p-4">
+              <VariantForm submitting={busy} submitLabel="添加变体" onSubmit={handleSubmit} onCancel={() => setShowCreate(false)} />
             </div>
           )}
         </>

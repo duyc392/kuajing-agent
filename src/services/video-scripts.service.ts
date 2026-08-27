@@ -12,11 +12,22 @@ type ScriptRow = VideoScript & { product: { name: string } | null };
 function parseShots(json: string): ScriptShot[] {
   try {
     const parsed: unknown = JSON.parse(json);
-    if (Array.isArray(parsed)) return parsed as ScriptShot[];
+    if (Array.isArray(parsed)) {
+      return parsed.filter(isScriptShot);
+    }
   } catch {
     // 忽略无法解析的历史数据。
   }
   return [];
+}
+
+function isScriptShot(value: unknown): value is ScriptShot {
+  if (typeof value !== "object" || value === null) return false;
+  const shot = value as Record<string, unknown>;
+  return typeof shot.scene === "string" && shot.scene.trim() !== ""
+    && typeof shot.voiceover === "string" && shot.voiceover.trim() !== ""
+    && typeof shot.subtitle === "string" && shot.subtitle.trim() !== ""
+    && Number.isInteger(shot.seconds) && Number(shot.seconds) > 0;
 }
 
 function toSummary(row: ScriptRow): ScriptSummary {
@@ -27,6 +38,8 @@ function toSummary(row: ScriptRow): ScriptSummary {
     hook: row.hook,
     style: row.style,
     productName: row.product?.name ?? null,
+    version: row.version,
+    parentScriptId: row.parentScriptId,
     updatedAt: row.updatedAt.toISOString(),
   };
 }
@@ -41,14 +54,17 @@ function toDetail(row: ScriptRow): ScriptDetailView {
     cta: row.cta,
     style: row.style,
     shots: parseShots(row.shots),
+    version: row.version,
+    parentScriptId: row.parentScriptId,
     updatedAt: row.updatedAt.toISOString(),
   };
 }
 
-export async function listScripts(shopId: string): Promise<ScriptSummary[]> {
+export async function listScripts(shopId: string, productId?: string): Promise<ScriptSummary[]> {
   await getShop(shopId);
+  if (productId) await getProduct({ id: productId, shopId });
   const rows = await prisma.videoScript.findMany({
-    where: { shopId },
+    where: { shopId, ...(productId ? { productId } : {}) },
     orderBy: { createdAt: "desc" },
     include: { product: { select: { name: true } } },
   });

@@ -1,4 +1,4 @@
-// 用途：文案历史标签页（PRD 故事 19）：列出商品全部文案版本、切换当前版本、任选两个版本并排对比（逐字段标注相同/不同）；纯展示组件，数据与切换经 apiRequest。
+// 用途：文案版本卡片：列出商品全部文案版本、切换当前版本、任选两个版本并排对比（逐字段标注相同/不同）；纯展示组件，数据与切换经 apiRequest。
 "use client";
 
 import { useRef, useState } from "react";
@@ -32,6 +32,9 @@ function CopyRow({ copy, isCurrent, switching, compareLabel, canCompare, onApply
       <div className="flex items-center justify-between gap-2">
         <p className="min-w-0 truncate text-sm font-medium text-gray-900">{copy.title}</p>
         <div className="flex shrink-0 items-center gap-2">
+          <span className={`rounded-full px-2 py-0.5 text-xs ${isCurrent ? "bg-blue-50 text-blue-600" : "bg-gray-100 text-gray-500"}`}>
+            {isCurrent ? "当前线上" : "草稿"}
+          </span>
           {compareLabel && (
             <span className="rounded-full bg-purple-50 px-2 py-0.5 text-xs text-purple-600">对比 {compareLabel}</span>
           )}
@@ -44,9 +47,7 @@ function CopyRow({ copy, isCurrent, switching, compareLabel, canCompare, onApply
               对比
             </button>
           )}
-          {isCurrent ? (
-            <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-600">当前</span>
-          ) : (
+          {!isCurrent && (
             <button
               type="button"
               onClick={() => onApply(copy.id)}
@@ -173,6 +174,7 @@ export default function CopyHistory({ productId, shopId, copies }: CopyHistoryPr
   if (copies.length === 0) {
     return (
       <div className="rounded-xl border border-gray-200 bg-white p-5">
+        <h2 className="text-base font-semibold text-gray-900">📝 商品文案版本 (0)</h2>
         <p className="py-6 text-center text-sm text-gray-400">
           还没有文案版本。在对话中让 Agent 生成文案后，这里会列出每个版本并支持对比与切换。
         </p>
@@ -189,7 +191,10 @@ export default function CopyHistory({ productId, shopId, copies }: CopyHistoryPr
       {switchError && <ErrorMessage message={switchError} onRetry={retryFailed} />}
       {compareCopies.length === 2 && <ComparePanel a={compareCopies[0]} b={compareCopies[1]} onClose={() => setCompareIds([])} />}
       <div className="rounded-xl border border-gray-200 bg-white p-5">
-        {copies.length < 2 && <p className="mb-2 text-xs text-gray-400">至少需要两个文案版本才能使用版本对比。</p>}
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold text-gray-900">📝 商品文案版本 ({copies.length})</h2>
+          {copies.length < 2 && <p className="text-xs text-gray-400">至少需要两个版本才能对比</p>}
+        </div>
         <CopyList copies={effectiveCopies} switching={switching} compareIds={compareIds} onApply={handleApply} onToggleCompare={handleToggleCompare} />
       </div>
     </div>

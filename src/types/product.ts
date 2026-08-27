@@ -28,6 +28,7 @@ export interface ProductSummary {
   price: number | null;
   variantCount: number;
   copyCount: number;
+  dnaBuilt: boolean;
   createdAt: string;
 }
 
@@ -87,4 +88,28 @@ export interface ProductDetailView {
   updatedAt: string;
   variants: VariantView[];
   copies: CopyView[];
+}
+
+// 六维商品 DNA：一个商品只有一份当前 DNA（productId 唯一），PUT 为创建或覆盖，不产生历史版本。
+export interface ProductDnaView {
+  id: string;
+  shopId: string;
+  productId: string;
+  targetPersona: string;
+  useScenarios: string;
+  coreSellingPoints: string;
+  visualHooks: string;
+  recommendedFormats: string;
+  competitorDifferences: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductDnaInput {
+  targetPersona: string;
+  useScenarios: string;
+  coreSellingPoints: string;
+  visualHooks: string;
+  recommendedFormats: string;
+  competitorDifferences: string;
 }

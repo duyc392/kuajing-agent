@@ -8,11 +8,10 @@ import ShopSwitcher from "@/components/layout/shop-switcher";
 const NAV_ITEMS = [
   { href: "/workspace", label: "工作台" },
   { href: "/products", label: "商品" },
-  { href: "/scripts", label: "脚本" },
+  { href: "/content", label: "内容创作" },
   { href: "/dashboard", label: "数据看板" },
   { href: "/settings", label: "设置" },
 ];
-
 export default function Header() {
   const pathname = usePathname();
   return (
@@ -30,6 +29,9 @@ export default function Header() {
                 }`}
               >
                 {item.label}
+                {item.href === "/content" && (
+                  <span className="ml-1 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">NEW</span>
+                )}
               </Link>
             );
           })}

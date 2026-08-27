@@ -225,6 +225,11 @@ export default function AgentDrawer() {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const close = useCallback(() => setOpen(false), []);
+  useEffect(() => {
+    const openDrawer = () => setOpen(true);
+    window.addEventListener("open-agent-drawer", openDrawer);
+    return () => window.removeEventListener("open-agent-drawer", openDrawer);
+  }, []);
   useDrawerA11y(open, entryRef, closeRef, panelRef, close);
 
   return (

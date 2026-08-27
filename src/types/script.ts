@@ -35,6 +35,8 @@ export interface ScriptSummary {
   hook: string;
   style: string | null;
   productName: string | null;
+  version: number;
+  parentScriptId: string | null;
   updatedAt: string;
 }
 
@@ -47,6 +49,8 @@ export interface ScriptDetailView {
   cta: string;
   style: string | null;
   shots: ScriptShot[];
+  version: number;
+  parentScriptId: string | null;
   updatedAt: string;
 }
 

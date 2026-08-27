@@ -106,7 +106,7 @@ function ImageCard({ image, onApply, onDelete }: { image: ProductImageView; onAp
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
       {/* 本地静态文件直接 img 渲染；缺失时给占位灰块，不白屏。 */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={image.path} alt={image.prompt ?? "商品图片"} className="h-36 w-full bg-gray-100 object-cover" />
+      <img src={image.path} alt={image.prompt ?? "商品图片"} className="aspect-square w-full bg-gray-100 object-cover" />
       <div className="grid gap-2 p-3">
         <div className="flex items-center gap-1 text-xs">
           <span className="rounded bg-blue-50 px-1.5 py-0.5 text-blue-600">{TYPE_LABELS[image.type] ?? image.type}</span>
@@ -134,37 +134,42 @@ export default function ProductImages({ productId, shopId }: { productId: string
 
   return (
     <div className="grid gap-3">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-500">生成的图片以草稿保存，点击「应用」后生效为商品图片。</p>
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-        >
-          {uploading ? "上传中…" : "＋ 上传图片"}
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/png,image/jpeg,image/webp"
-          className="hidden"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) void upload(file);
-            event.target.value = "";
-          }}
-        />
-      </div>
-      {(error || actionError) && <ErrorMessage message={error || actionError} onRetry={refresh} />}
-      {images.length === 0 && (
-        <p className="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-400">
-          还没有商品图片。可以上传自己的图片，或在对话中让 Agent「为这个商品生成主图」，生成后在这里查看并应用。
-        </p>
-      )}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {images.map((image) => (
-          <ImageCard key={image.id} image={image} onApply={() => apply(image)} onDelete={() => remove(image)} />
-        ))}
+      <div className="rounded-xl border border-gray-200 bg-white p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">🖼️ 商品主图与素材</h2>
+            <p className="mt-1 text-xs text-gray-500">生成的图片以草稿保存，点击「应用」后生效为商品图片。</p>
+          </div>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            {uploading ? "上传中…" : "＋ 上传图片"}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void upload(file);
+              event.target.value = "";
+            }}
+          />
+        </div>
+        {(error || actionError) && <ErrorMessage message={error || actionError} onRetry={refresh} />}
+        {images.length === 0 && (
+          <p className="mt-3 rounded-lg border border-dashed border-gray-300 p-6 text-center text-sm text-gray-400">
+            还没有商品图片。可以上传自己的图片，或在对话中让 Agent「为这个商品生成主图」，生成后在这里查看并应用。
+          </p>
+        )}
+        <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4">
+          {images.map((image) => (
+            <ImageCard key={image.id} image={image} onApply={() => apply(image)} onDelete={() => remove(image)} />
+          ))}
+        </div>
       </div>
     </div>
   );

@@ -12,11 +12,16 @@ next-env.d.ts
 .env.local
 .env.*.local
 
-# 本地数据（SQLite 数据库、密钥配置文件、生成的图片）
+# 数据工具（SQLite 数据库、密钥配置文件、生成的图片）
 data/*
 !data/.gitkeep
 public/generated/*
 !public/generated/.gitkeep
+
+# 测试临时数据库（content-cascade / product-dna / 建库产物，崩溃残留兜底）
+prisma/*test*.db*
+prisma/*verify*.db*
+prisma/*.db*
 
 # 日志
 *.log
@@ -35,3 +40,6 @@ logs/
 
 # 本地读码索引（cleanread 工具产物）
 cleanread/
+
+# 测试临时数据库（content-cascade / product-dna 测试用，崩溃残留兜底）
+prisma/*test*.db*

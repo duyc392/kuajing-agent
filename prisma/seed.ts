@@ -137,7 +137,8 @@ const SHOPS: ShopSeed[] = [
 
 const VIDEO_SCRIPTS = [
   {
-    shopId: "shop-1", type: "种草", duration: 30, style: "美式快节奏种草",
+    id: "script-1", version: 1,
+    shopId: "shop-1", productId: "prod-1-1", type: "种草", duration: 30, style: "美式快节奏种草",
     hook: "我回购了 3 次的补光镜，到底好在哪？", cta: "点击购物车，现在下单立减 5 美元",
     shots: JSON.stringify([
       { scene: "特写开箱", voiceover: "This mirror changed my makeup game.", subtitle: "This mirror changed my makeup game.", seconds: 3 },
@@ -147,7 +148,8 @@ const VIDEO_SCRIPTS = [
     ]),
   },
   {
-    shopId: "shop-2", type: "开箱", duration: 15, style: "印尼语快节奏开箱",
+    id: "script-2", version: 1,
+    shopId: "shop-2", productId: "prod-2-1", type: "开箱", duration: 15, style: "印尼语快节奏开箱",
     hook: "Kotak ini bisa dilipat?", cta: "Cek keranjang kuning sekarang",
     shots: JSON.stringify([
       { scene: "开箱", voiceover: "Buka kotak, lihat isinya.", subtitle: "Buka kotak, lihat isinya.", seconds: 3 },
@@ -174,6 +176,74 @@ const LIVE_SCRIPTS = [
 const GENERATIONS = [
   { shopId: "shop-1", type: "copywriting", model: "deepseek-chat", prompt: "为便携式 LED 美妆镜生成英文文案", output: "（演示数据）标题、描述、卖点……", status: "success" },
   { shopId: "shop-2", type: "selection", model: "deepseek-chat", prompt: "分析印尼站收纳用品机会", output: "（演示数据）市场容量、竞争度……", status: "success" },
+];
+
+// 内容运营演示数据（商品 DNA / 爆款拆解 / 已发布视频 / 复盘 / 素材需求），只挂在 shop-1 的美妆镜商品上。
+const PRODUCT_DNAS = [
+  {
+    shopId: "shop-1", productId: "prod-1-1",
+    targetPersona: "18-34 岁女性，通勤与学生党，追求精致但预算有限",
+    useScenarios: "通勤补妆、宿舍化妆台、旅行收纳",
+    coreSellingPoints: "三档补光还原自然色；折叠后仅 1cm，随身携带",
+    visualHooks: "开灯瞬间脸部亮度对比；粉饼盒大小的折叠特写",
+    recommendedFormats: "对比（开灯前后）、教程（通勤快速妆容）、种草",
+    competitorDifferences: "同价位多为单档补光，本品三档调光且 USB 充电复用",
+  },
+];
+
+const CONTENT_REFERENCES = [
+  {
+    id: "ref-1-1", shopId: "shop-1", productId: "prod-1-1",
+    sourceVideoId: "7280000000000000001", sourceUrl: "https://www.tiktok.com/@demo/video/7280000000000000001",
+    title: "This $12 mirror replaced my $60 one", angle: "种草",
+    playCount: 2400000, conversionRate: 3.2, completionRate: 46,
+    hook: "Stop overpaying for this.", sellingPoint: "同功能价格只要五分之一", highFrequencyQuestion: "和贵的那个有什么区别？",
+    cta: "Grab yours before it sells out", collectedAt: "2026-08-18T10:00:00Z",
+  },
+  {
+    id: "ref-1-2", shopId: "shop-1", productId: "prod-1-1",
+    sourceVideoId: "7280000000000000002", sourceUrl: null,
+    title: "Cheap vs expensive: can you tell?", angle: "对比",
+    playCount: 860000, conversionRate: null, completionRate: 38,
+    hook: "One of these costs 5x more.", sellingPoint: null, highFrequencyQuestion: null,
+    cta: "Comment which one you picked", collectedAt: "2026-08-19T10:00:00Z",
+  },
+];
+
+const PUBLISHED_VIDEOS = [
+  {
+    id: "pv-1-1", shopId: "shop-1", productId: "prod-1-1", scriptId: "script-1",
+    platformVideoId: "7290000000000000001", title: "我回购了 3 次的补光镜，到底好在哪？", angle: "种草",
+    durationSeconds: 30, playCount: 186000, orderCount: 412, gmv: 8198.8,
+    completionRate: 41, status: "在跑",
+    retentionData: JSON.stringify([100, 86, 74, 66, 60, 56, 53, 51]),
+    publishedAt: "2026-08-10T12:00:00Z",
+  },
+];
+
+const VIDEO_REVIEWS = [
+  {
+    shopId: "shop-1", publishedVideoId: "pv-1-1",
+    dropPointSeconds: 3, dropRate: 26,
+    summary: "第 3 秒钩子结束进入产品介绍时流失最大，核心卖点出现太晚。",
+    suggestions: JSON.stringify(["把三档补光对比提前到第 2 秒", "前 3 秒口播加价格锚点", "第 5 秒前出现字幕大字卖点"]),
+    generatedScriptId: null,
+  },
+];
+
+const SHOT_REQUIREMENTS = [
+  {
+    id: "sr-1-1", shopId: "shop-1", productId: "prod-1-1", shotCode: "S01",
+    scene: "化妆桌前，暗光环境", actionDescription: "特写：手指按下开关，脸部瞬间亮起",
+    propsAndLighting: "美妆镜本体、粉底液；环境暗光突出补光效果",
+    scriptIds: JSON.stringify(["script-1"]), status: "已完成",
+  },
+  {
+    id: "sr-1-2", shopId: "shop-1", productId: "prod-1-1", shotCode: "S02",
+    scene: "通勤包内取物", actionDescription: "中景：从托特包侧袋抽出折叠的镜子",
+    propsAndLighting: "托特包、镜子；自然光",
+    scriptIds: JSON.stringify(["script-1"]), status: "待拍摄",
+  },
 ];
 
 async function main() {
@@ -207,10 +277,15 @@ async function main() {
   await prisma.videoScript.createMany({ data: VIDEO_SCRIPTS });
   await prisma.liveScript.createMany({ data: LIVE_SCRIPTS });
   await prisma.generation.createMany({ data: GENERATIONS });
+  await prisma.productDna.createMany({ data: PRODUCT_DNAS });
+  await prisma.contentReference.createMany({ data: CONTENT_REFERENCES });
+  await prisma.publishedVideo.createMany({ data: PUBLISHED_VIDEOS });
+  await prisma.videoReview.createMany({ data: VIDEO_REVIEWS });
+  await prisma.shotRequirement.createMany({ data: SHOT_REQUIREMENTS });
   await prisma.skill.create({
     data: { name: "美式口语化文案", filename: "示例-美式口语化文案.md", description: "生成美区商品文案时使用口语化表达", enabled: true },
   });
-  console.log("Seed 完成：2 店铺、6 商品、12 文案、3 对话、9 消息、4 记忆、3 脚本、2 审计、1 技能。");
+  console.log("Seed 完成：2 店铺、6 商品、12 文案、3 对话、9 消息、4 记忆、2 脚本、2 审计、1 技能；内容运营演示数据：1 DNA、2 内容拆解、1 已发布视频、1 复盘、2 素材需求。");
 }
 
 main()

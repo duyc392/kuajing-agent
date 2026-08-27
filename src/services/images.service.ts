@@ -122,21 +122,32 @@ export async function createUploadedImage(productId: string, shopId: string, fil
   const dir = path.join(process.cwd(), "public", "generated");
   await fs.mkdir(dir, { recursive: true });
   const filename = `${crypto.randomUUID()}.${extensionOfMime(mimeType)}`;
-  await fs.writeFile(path.join(dir, filename), file.bytes);
-  const existing = await prisma.productImage.findMany({
-    where: { productId, product: { is: { shopId } } },
-    select: { sortOrder: true },
-  });
-  const maxSortOrder = existing.reduce((max, row) => Math.max(max, row.sortOrder), 0);
-  const row = await prisma.productImage.create({
-    data: {
-      productId,
-      path: `/generated/${filename}`,
-      type: "main",
-      prompt: "卖家上传",
-      applied: false,
-      sortOrder: maxSortOrder + 1,
-    },
-  });
-  return toView(row);
+  const diskPath = path.join(dir, filename);
+  await fs.writeFile(diskPath, file.bytes);
+  try {
+    const existing = await prisma.productImage.findMany({
+      where: { productId, product: { is: { shopId } } },
+      select: { sortOrder: true },
+    });
+    const maxSortOrder = existing.reduce((max, row) => Math.max(max, row.sortOrder), 0);
+    const row = await prisma.productImage.create({
+      data: {
+        productId,
+        path: `/generated/${filename}`,
+        type: "main",
+        prompt: "卖家上传",
+        applied: false,
+        sortOrder: maxSortOrder + 1,
+      },
+    });
+    return toView(row);
+  } catch (error) {
+    // 数据库建档失败：回收刚写入的图片文件，不留无档案的孤儿图片。
+    try {
+      await fs.unlink(diskPath);
+    } catch (cleanupError) {
+      console.error("[images] 孤儿图片清理失败:", cleanupError);
+    }
+    throw error;
+  }
 }

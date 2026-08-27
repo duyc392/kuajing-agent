@@ -28,7 +28,7 @@ function ScriptCard({ script }: { script: ScriptSummary }) {
 }
 
 // 列表加载：店铺或重载计数变化时重新拉取，过期请求作废（stale + 取消信号），响应非数组抛错走错误态。
-function useScriptList(currentShopId: string | null) {
+function useScriptList(currentShopId: string | null, productId?: string) {
   const [list, setList] = useState<ScriptSummary[] | null>(null);
   const [error, setError] = useState("");
   const [reloadCount, setReloadCount] = useState(0);
@@ -39,7 +39,8 @@ function useScriptList(currentShopId: string | null) {
     const controller = new AbortController();
     setList(null);
     setError("");
-    apiRequest<unknown>("GET", `/api/scripts?shopId=${currentShopId}`, undefined, controller.signal)
+    const productQuery = productId ? `&productId=${productId}` : "";
+    apiRequest<unknown>("GET", `/api/scripts?shopId=${currentShopId}${productQuery}`, undefined, controller.signal)
       .then((rows) => {
         if (stale) return;
         if (!Array.isArray(rows)) throw new Error("脚本列表数据异常");
@@ -50,14 +51,14 @@ function useScriptList(currentShopId: string | null) {
       stale = true;
       controller.abort();
     };
-  }, [currentShopId, reloadCount]);
+  }, [currentShopId, productId, reloadCount]);
 
   return { list, error, retry: () => setReloadCount((count) => count + 1) };
 }
 
-export default function ScriptList() {
+export default function ScriptList({ productId }: { productId?: string }) {
   const { currentShopId, shops } = useShops();
-  const { list, error, retry } = useScriptList(currentShopId);
+  const { list, error, retry } = useScriptList(currentShopId, productId);
   const shopName = shops.find((shop) => shop.id === currentShopId)?.name ?? "";
 
   if (!currentShopId) {
@@ -68,7 +69,7 @@ export default function ScriptList() {
     <>
       <header>
         <h1 className="text-2xl font-bold text-gray-900">视频脚本</h1>
-        <p className="mt-1 text-sm text-gray-500">当前店铺：{shopName} · 共 {list?.length ?? 0} 个视频脚本</p>
+        <p className="mt-1 text-sm text-gray-500">当前店铺：{shopName} · {productId ? "当前商品" : "全部商品"}共 {list?.length ?? 0} 个视频脚本</p>
       </header>
       {list === null && !error && <Loading text="加载脚本…" />}
       {error && <ErrorMessage message={error} onRetry={retry} />}
