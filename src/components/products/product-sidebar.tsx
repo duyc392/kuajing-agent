@@ -57,7 +57,12 @@ export default function ProductSidebar({
                 className={`w-full rounded-lg px-3 py-2 text-left ${selectedId === product.id ? "bg-blue-50 ring-1 ring-blue-300" : "bg-white hover:bg-gray-100"}`}
               >
                 <p className="flex items-center justify-between gap-2 text-sm font-medium text-gray-900">
-                  <span className="truncate">{product.name}</span>
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <span className="truncate">{product.name}</span>
+                    {product.testingStatus === "testing" && (
+                      <span className="shrink-0 rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">🟡 测品中</span>
+                    )}
+                  </span>
                   <span className="shrink-0 text-blue-600">{product.price !== null ? `¥${formatPrice(product.price)}` : "—"}</span>
                 </p>
                 <p className="mt-0.5 text-xs text-gray-500">

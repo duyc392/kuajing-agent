@@ -1,13 +1,13 @@
 // 用途：前端统一请求封装 apiRequest<T>：所有组件与页面经它调用 /api/*，统一处理错误提示、JSON 解析、超时与取消，禁止在组件里裸写 fetch。
 const TIMEOUT_MS = 15000;
 
-export async function apiRequest<T>(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+export async function apiRequest<T>(method: string, path: string, body?: unknown, signal?: AbortSignal, timeoutMs: number = TIMEOUT_MS): Promise<T> {
   const controller = new AbortController();
   let timedOut = false;
   const timeout = setTimeout(() => {
     timedOut = true;
     controller.abort();
-  }, TIMEOUT_MS);
+  }, timeoutMs);
   const onOuterAbort = () => controller.abort();
   signal?.addEventListener("abort", onOuterAbort);
   try {

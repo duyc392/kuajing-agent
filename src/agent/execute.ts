@@ -12,6 +12,9 @@ export interface RunAgentTurnParams {
   content: string;
   shopId: string;
   signal?: AbortSignal;
+  // 历史之后、本轮消息之前的临时上下文（如按本轮问题检索的领域知识）：作为一条用户角色消息注入，
+  // 不落库、不进系统提示词——保证系统提示词与历史构成稳定前缀（DeepSeek 前缀缓存友好）。
+  postHistoryContext?: string;
   onDelta?: (text: string) => void;
   onToolStart?: (call: ToolCallRecord) => void;
   onToolEnd?: (call: ToolCallRecord) => void;
@@ -31,7 +34,7 @@ function toAgentMessages(history: HistoryItem[]): AgentMessage[] {
           content: [{ type: "text", text: item.content }],
           api: "openai-completions",
           provider: "deepseek",
-          model: "deepseek-chat",
+          model: "deepseek-v4-flash",
           usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
           stopReason: "stop",
           timestamp: item.createdAt.getTime(),
@@ -152,9 +155,14 @@ async function enforceSelectionTool(agent: Agent, content: string, toolCalls: To
 }
 
 export async function runAgentTurn(params: RunAgentTurnParams): Promise<RunAgentTurnResult> {
+  const initialMessages = toAgentMessages(params.history);
+  // 临时上下文垫在历史末尾：模型视角为「…历史 → 本轮参考资料 → 本轮问题」，不污染系统提示词前缀。
+  if (params.postHistoryContext) {
+    initialMessages.push({ role: "user", content: params.postHistoryContext, timestamp: Date.now() });
+  }
   const agent = await createAgent({
     systemPrompt: params.systemPrompt,
-    messages: toAgentMessages(params.history),
+    messages: initialMessages,
   });
   const generateText: GenerateTextFn = Object.assign(
     (systemPrompt: string, userPrompt: string, signal?: AbortSignal) =>

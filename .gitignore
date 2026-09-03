@@ -34,6 +34,7 @@ Thumbs.db
 # 编辑器
 .idea/
 .vscode/
+.workbuddy/
 
 # 启动日志
 logs/

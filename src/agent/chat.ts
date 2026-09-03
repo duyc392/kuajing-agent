@@ -187,13 +187,18 @@ async function runReplyTurn(params: AgentReplyParams, push: (event: ChatStreamEv
     const memories = (await listMemories(params.shopId)).slice(-MAX_CONTEXT_MEMORIES);
     // 已启用技能注入系统提示词（PRD 故事 46/47：确认沉淀的技能自动复用，启用状态在设置页控制）。
     const skillsBlock = await loadSkillsBlock();
-    // 领域知识注入（PRD 故事 33）：按本轮问题检索知识片段并拼进系统提示词，供模型引用回答。
-    const knowledgeBlock = formatKnowledgeBlock(await retrieveKnowledge(params.content));
+    // 领域知识（PRD 故事 33）：按本轮问题检索后垫在历史末尾、用户消息之前（[knowledge] 数据区，不落库）；
+    // 不进系统提示词——知识按问题每轮不同，放前缀会击穿整段历史的缓存；未检索到时完全不注入。
+    const knowledgeSections = await retrieveKnowledge(params.content);
+    const postHistoryContext = knowledgeSections.length > 0
+      ? `[knowledge]\n${formatKnowledgeBlock(knowledgeSections)}\n[/knowledge]`
+      : undefined;
     const { text, toolCalls } = await runAgentTurn({
-      systemPrompt: buildSystemPrompt({ name: shop.name, market: shop.market, description: shop.description, memories, skillsBlock, knowledgeBlock }),
+      systemPrompt: buildSystemPrompt({ name: shop.name, market: shop.market, description: shop.description, memories, skillsBlock }),
       history,
       content: params.content,
       shopId: params.shopId,
+      postHistoryContext,
       signal: params.signal,
       onDelta: (event) => push({ type: "delta", text: event }),
       onToolStart: (call) => push({ type: "tool_start", call }),

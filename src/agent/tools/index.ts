@@ -6,6 +6,7 @@ import { createCompetitorTool, createMarketTool, createRecommendTool } from "@/a
 import { createImageVariantTool, createProductImageTool } from "@/agent/tools/image";
 import { createProposeSkillTool } from "@/agent/tools/skill";
 import { createDatabaseTool } from "@/agent/tools/database";
+import { createSelectionWorkbenchTool } from "@/agent/tools/selection-workbench";
 
 export function buildAgentTools(deps: CopywritingToolDeps) {
   return [
@@ -19,5 +20,6 @@ export function buildAgentTools(deps: CopywritingToolDeps) {
     createImageVariantTool(deps),
     createProposeSkillTool(),
     createDatabaseTool(deps),
+    createSelectionWorkbenchTool(),
   ];
 }

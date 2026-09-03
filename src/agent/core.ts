@@ -103,13 +103,13 @@ function mustGetModel(models: MutableModels, providerId: string, modelId: string
 export async function createAgent(options: CreateAgentOptions): Promise<Agent> {
   const useFaux = process.env[FAUX_ENV] === "1";
   const settings: LlmSettings = useFaux
-    ? { apiKey: "", baseUrl: DEEPSEEK_DEFAULT_BASE, model: "deepseek-chat" }
+    ? { apiKey: "", baseUrl: DEEPSEEK_DEFAULT_BASE, model: "deepseek-v4-flash" }
     : await (async () => {
         const keys = await readKeysConfig();
         return {
           apiKey: keys.llm.apiKey,
           baseUrl: keys.llm.baseUrl || DEEPSEEK_DEFAULT_BASE,
-          model: options.model || keys.llm.model || "deepseek-chat",
+          model: options.model || keys.llm.model || "deepseek-v4-flash",
         };
       })();
   // provider 注册与流式调用共用同一个 models 实例（分开注册会导致流式时 Unknown provider）。

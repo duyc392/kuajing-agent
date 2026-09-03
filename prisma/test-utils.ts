@@ -18,6 +18,7 @@ export interface TempDb {
 
 // 建临时库并返回绑定该库的独立客户端：不改动进程环境变量与共享单例（服务层自管理环境变量时再自行 set）。
 // 显式走 pwsh（Windows 下 execSync 默认 cmd.exe 兼容性差），首行 $ErrorActionPreference 保证失败即抛；
+// 60 秒硬超时（首次运行需下载 prisma engine，超时给出完整 stderr 而非静默卡死）；
 // 初始化失败时清理半成品库文件，不留无法使用的残留。
 export function createTempDb(prefix: string): TempDb {
   const dbName = `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}.db`;
@@ -27,11 +28,15 @@ export function createTempDb(prefix: string): TempDb {
   const result = spawnSync("pwsh", ["-NoProfile", "-Command", script], {
     cwd: PROJECT_ROOT,
     encoding: "utf8",
+    timeout: 60_000,
     env: { ...process.env, DATABASE_URL: url },
   });
   if (result.status !== 0) {
     removeSyncFiles(dbPath);
-    throw new Error(`临时库初始化失败：${result.stderr || result.stdout || `退出码 ${result.status}`}`);
+    const reason = result.error instanceof Error && typeof (result.error as Error & { code?: string }).code === "string"
+      ? (result.error as Error & { code: string }).code
+      : `退出码 ${result.status}`;
+    throw new Error(`临时库初始化失败（${reason}）：${result.stderr || result.stdout || "无输出"}`);
   }
   return { prisma: new PrismaClient({ datasources: { db: { url } } }), url, dbPath };
 }

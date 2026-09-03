@@ -52,7 +52,29 @@ export interface TurnHistory {
   dropped: HistoryItem[]; // 被预算裁掉的旧消息（最多 10 条，供压缩摘要用）
 }
 
-// 查询生成回复所需的对话历史（早于某条用户消息），按上述限制截断后返回。
+// 工具调用记录 → 一行中文摘要：让模型在后续轮次知道"上轮已经调过哪些工具"，避免对同一问题重复调用
+// （工具结果正文不进历史，只留名称线索）；同一工具多次调用只列一次，失败的标注（失败）。解析失败静默返回空。
+function toolSummaryOf(toolCallsJson: string | null): string {
+  if (!toolCallsJson) return "";
+  try {
+    const parsed: unknown = JSON.parse(toolCallsJson);
+    if (!Array.isArray(parsed)) return "";
+    const names: string[] = [];
+    for (const call of parsed) {
+      if (typeof call !== "object" || call === null) continue;
+      const record = call as { label?: unknown; toolName?: unknown; status?: unknown };
+      const label = typeof record.label === "string" ? record.label : typeof record.toolName === "string" ? record.toolName : "";
+      if (label === "") continue;
+      const text = record.status === "error" ? `${label}（失败）` : label;
+      if (!names.includes(text)) names.push(text);
+    }
+    return names.length === 0 ? "" : `\n（本轮已调用工具：${names.join("、")}）`;
+  } catch {
+    return "";
+  }
+}
+
+// 查询生成回复所需的对话历史（早于某条用户消息），按上述限制截断后返回；Agent 消息附工具调用摘要行。
 export async function getTurnHistory(params: {
   conversationId: string;
   shopId: string;
@@ -71,7 +93,7 @@ export async function getTurnHistory(params: {
   rows.reverse();
   const items = rows.map((row) => ({
     role: row.role as "user" | "agent",
-    content: row.content.slice(0, HISTORY_MESSAGE_CHAR_MAX),
+    content: row.content.slice(0, HISTORY_MESSAGE_CHAR_MAX) + toolSummaryOf(row.toolCalls),
     createdAt: row.createdAt,
   }));
   // 总字符预算：从最旧的消息开始丢弃，至少保留最近一条。

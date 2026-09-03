@@ -2,10 +2,11 @@
 // 文案/视频脚本/直播脚本/选品调研有专属卡片，未知工具显示通用回退卡片。
 "use client";
 
-import { COMPETITOR_TOOL_NAME, COPY_TOOL_NAME, IMAGE_TOOL_NAME, IMAGE_VARIANT_TOOL_NAME, LIVE_SCRIPT_TOOL_NAME, MARKET_TOOL_NAME, PROPOSE_SKILL_TOOL_NAME, RECOMMEND_TOOL_NAME, SCRIPT_TOOL_NAME } from "@/types";
+import { COMPETITOR_TOOL_NAME, COPY_TOOL_NAME, IMAGE_TOOL_NAME, IMAGE_VARIANT_TOOL_NAME, LIVE_SCRIPT_TOOL_NAME, MARKET_TOOL_NAME, PROPOSE_SKILL_TOOL_NAME, RECOMMEND_TOOL_NAME, SCRIPT_TOOL_NAME, SELECTION_WORKBENCH_TOOL_NAME } from "@/types";
 import type { CopyToolDetails, ImageToolDetails, LiveScriptToolDetails, ScriptToolDetails, ToolCallRecord } from "@/types";
 import { CompetitorCard, MarketAnalysisCard, RecommendationCard } from "@/components/chat/selection-tool-cards";
 import SkillProposalCard from "@/components/chat/skill-proposal-card";
+import SelectionWorkbenchCard from "@/components/chat/selection-workbench-card";
 import ToolStatusCard, { cardStyle } from "@/components/chat/tool-status-card";
 
 function CopyToolCard({ call }: { call: ToolCallRecord }) {
@@ -99,5 +100,6 @@ export default function ToolCard({ call, messageId }: { call: ToolCallRecord; me
   if (call.toolName === COMPETITOR_TOOL_NAME) return <CompetitorCard call={call} />;
   if (call.toolName === IMAGE_TOOL_NAME || call.toolName === IMAGE_VARIANT_TOOL_NAME) return <ImageToolCard call={call} />;
   if (call.toolName === PROPOSE_SKILL_TOOL_NAME) return <SkillProposalCard call={call} messageId={messageId} />;
+  if (call.toolName === SELECTION_WORKBENCH_TOOL_NAME) return <SelectionWorkbenchCard call={call} />;
   return <GenericToolCard call={call} />;
 }

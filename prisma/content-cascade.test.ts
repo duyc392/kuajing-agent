@@ -1,5 +1,5 @@
 // 用途：内容运营数据结构守护测试：
-// 静态部分——schema 里 Product 字段集合不变（只允许新增反向关联）、五张新表都带 shopId、级联与置空声明齐全；
+// 静态部分——schema 里 Product 字段集合不变（只允许新增反向关联与测品状态字段）、五张新表都带 shopId、级联与置空声明齐全；
 // 数据库部分——用临时 SQLite 库真实验证「删商品级联清空全部关联内容」。
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -23,9 +23,9 @@ function fieldNames(block: string): string[] {
   return [...block.matchAll(/^ {2}([A-Za-z]+)\s/gm)].map((match) => match[1]);
 }
 
-test("Product 字段集合不变：只允许既有字段与新增反向关联", () => {
+test("Product 字段集合不变：只允许既有字段、新增反向关联与测品状态字段", () => {
   const expected = [
-    "id", "shopId", "shop", "name", "category", "price", "description", "skuRule", "createdAt", "updatedAt",
+    "id", "shopId", "shop", "name", "category", "price", "description", "skuRule", "testingStatus", "createdAt", "updatedAt",
     "copies", "variants", "images", "videoScripts",
     "dna", "contentReferences", "publishedVideos", "shotRequirements",
   ].sort();

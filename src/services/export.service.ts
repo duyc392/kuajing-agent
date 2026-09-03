@@ -79,6 +79,14 @@ async function fetchAllData(shopId: string): Promise<ExportData> {
   return { shops, products, variants, images, copies, videoScripts, liveScripts, conversations, messages, memories, generations, skills };
 }
 
+// 测品状态导出文案：null 为普通在售。
+function testingStatusLabel(value: string | null): string {
+  if (value === "testing") return "测品中";
+  if (value === "scaled") return "已放量";
+  if (value === "killed") return "已淘汰";
+  return "在售";
+}
+
 // 核心业务工作表：店铺、商品、变体、图片、文案版本。
 function coreDataSheets(data: ExportData): ExportSheet[] {
   return [
@@ -89,8 +97,8 @@ function coreDataSheets(data: ExportData): ExportSheet[] {
     },
     {
       name: "商品",
-      columns: ["ID", "店铺ID", "名称", "类目", "基础价格", "描述", "SKU规则", "创建时间", "更新时间"],
-      rows: data.products.map((p) => [p.id, p.shopId, p.name, p.category, p.price, p.description, p.skuRule, iso(p.createdAt), iso(p.updatedAt)]),
+      columns: ["ID", "店铺ID", "名称", "类目", "基础价格", "描述", "SKU规则", "测品状态", "创建时间", "更新时间"],
+      rows: data.products.map((p) => [p.id, p.shopId, p.name, p.category, p.price, p.description, p.skuRule, testingStatusLabel(p.testingStatus), iso(p.createdAt), iso(p.updatedAt)]),
     },
     {
       name: "商品变体",

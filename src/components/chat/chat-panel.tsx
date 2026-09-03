@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
+import { usePathname } from "next/navigation";
 import { apiRequest } from "@/lib/api-client";
 import { streamChatRequest } from "@/lib/api-stream";
 import MessageBubble from "@/components/chat/message-bubble";
@@ -11,6 +12,8 @@ import QuickCommands from "@/components/chat/quick-commands";
 import Loading from "@/components/shared/loading";
 import ErrorMessage from "@/components/shared/error-message";
 import { useShops } from "@/components/shop/shop-context";
+import { readSelectionSummary } from "@/components/selection/selection-context";
+import { readProductSnapshot } from "@/components/chat/product-snapshot";
 import type { ChatStreamEvent, MessageView, ToolCallRecord } from "@/types";
 
 interface MessageListProps {
@@ -157,6 +160,7 @@ function createStreamEventHandler(setters: StreamHandlerSetters) {
 interface UseChatSendArgs {
   conversationId: string;
   shopId: string | null;
+  pathname: string;
   messages: MessageView[] | null;
   setMessages: React.Dispatch<React.SetStateAction<MessageView[] | null>>;
   setError: React.Dispatch<React.SetStateAction<string>>;
@@ -216,9 +220,19 @@ function useChatSend(args: UseChatSendArgs) {
     setStreamText("");
     setActiveTools([]);
     try {
+      // 页面数据快照（惰性同步，垫在消息末尾）：选品候选摘要（沙盒存在时）+ 商品页实时快照（商品详情页打开时），
+      // 均为数据区标记、声明"与前文冲突时以此为准"；快照读取失败静默跳过，不阻断发送。
+      const blocks: string[] = [];
+      const summary = readSelectionSummary(args.shopId);
+      if (summary !== null) {
+        blocks.push(`[selection-summary]\n以下为当前选品候选池的最新摘要，与前文冲突时以此为准：\n${summary}\n[/selection-summary]`);
+      }
+      const productSnapshot = await readProductSnapshot(args.pathname, args.shopId);
+      if (productSnapshot !== null) blocks.push(productSnapshot);
+      const effectiveContent = blocks.length === 0 ? content : `${content}\n\n${blocks.join("\n\n")}`;
       await streamChatRequest(
         `/api/conversations/${args.conversationId}/messages`,
-        { shopId: args.shopId, content },
+        { shopId: args.shopId, content: effectiveContent },
         handleEvent,
         abortSignal,
       );
@@ -239,11 +253,13 @@ function useChatSend(args: UseChatSendArgs) {
 
 export default function ChatPanel({ conversationId, onTurnComplete, autoSendMessage }: ChatPanelProps) {
   const { currentShopId } = useShops();
+  const pathname = usePathname();
   const { messages, setMessages, error, setError, retry } = useConversationMessages(conversationId, currentShopId);
   const [input, setInput] = useState("");
   const { sending, streamText, activeTools, send } = useChatSend({
     conversationId,
     shopId: currentShopId,
+    pathname,
     messages,
     setMessages,
     setError,

@@ -41,6 +41,7 @@ model Product {
   price       Float? // 基础价格
   description String? // 商品描述
   skuRule     String? // Agent 建议的 SKU 编码规则，如 "MZ-{颜色}-{尺寸}"
+  testingStatus String? // 测品状态：null=普通在售; "testing"=测品中; "scaled"=已放量; "killed"=已淘汰
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   copies    ProductCopy[]

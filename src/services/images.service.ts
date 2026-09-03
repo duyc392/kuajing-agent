@@ -8,6 +8,7 @@ import type { ProductImage } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { NotFoundError, ValidationError } from "@/lib/errors";
 import { detectImageMime, extensionOfMime, IMAGE_MAX_BYTES } from "@/lib/image-bytes";
+import { resolvePublicDiskPath } from "@/lib/public-path";
 import { getProduct } from "@/services/products.service";
 import type { ProductImageCreateInput, ProductImageType, ProductImageView, ProductImageUpdateInput } from "@/types";
 
@@ -22,12 +23,6 @@ function toView(row: ProductImage): ProductImageView {
     sortOrder: row.sortOrder,
     createdAt: row.createdAt.toISOString(),
   };
-}
-
-// 相对路径（/generated/xxx.png）→ 磁盘绝对路径，删除档案时清理文件用。
-function toDiskPath(relativePath: string): string {
-  const clean = relativePath.replace(/^\/+/, "");
-  return path.join(process.cwd(), "public", clean);
 }
 
 export async function listImages(productId: string, shopId: string): Promise<ProductImageView[]> {
@@ -94,7 +89,8 @@ export async function updateImage(query: { id: string; shopId: string }, input: 
   return toView(row);
 }
 
-// 删除档案 + 尽力清理磁盘文件：文件删除失败只记日志，不影响档案删除。
+// 删除档案 + 尽力清理磁盘文件：文件删除失败只记日志，不影响档案删除；
+// 路径解析超出 public 目录时拒绝清理（防御纵深，防穿越删除）。
 export async function deleteImage(query: { id: string; shopId: string }): Promise<void> {
   const row = await prisma.productImage.findFirst({
     where: { id: query.id, product: { is: { shopId: query.shopId } } },
@@ -104,8 +100,13 @@ export async function deleteImage(query: { id: string; shopId: string }): Promis
     where: { id: query.id, product: { is: { shopId: query.shopId } } },
   });
   if (result.count === 0) throw new NotFoundError("图片不存在");
+  const diskPath = resolvePublicDiskPath(row.path);
+  if (diskPath === null) {
+    console.error("[images] 图片档案路径不合法，跳过文件清理:", row.path);
+    return;
+  }
   try {
-    await fs.unlink(toDiskPath(row.path));
+    await fs.unlink(diskPath);
   } catch (error) {
     console.error("[images] 图片文件删除失败（档案已删除）:", error);
   }

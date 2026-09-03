@@ -8,6 +8,9 @@ import type { ShopOverview } from "@/types";
 
 const STORAGE_KEY = "kuajing.currentShopId";
 
+// 当前店铺 ID 的 localStorage 键（供其他客户端模块只读使用，如 Agent 指令队列按店入队）。
+export const CURRENT_SHOP_STORAGE_KEY = STORAGE_KEY;
+
 interface ShopsContextValue {
   shops: ShopOverview[];
   currentShopId: string | null;

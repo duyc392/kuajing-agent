@@ -135,6 +135,16 @@ async function resolveImageBytes(item: Record<string, unknown>, signal?: AbortSi
   throw new AppError("图片生成服务返回格式异常，请重试", "IMAGE_FORMAT", 502);
 }
 
+// 第三方错误正文脱敏后记日志：去除控制字符、遮蔽敏感信息（密钥、Token、Authorization 等）并截断，避免敏感内容灌入服务端日志。
+function logImageApiErrorBody(text: string): void {
+  const sanitized = text
+    .replace(/(bearer\s+)[^\s"',}]+/gi, "$1***")
+    .replace(/("?(?:api[_-]?key|secret|token|authorization|password)"?\s*[:=]\s*"?)[^"\s,}]+/gi, "$1***")
+    .replace(/[A-Za-z0-9_-]{32,}/g, (m) => `${m.slice(0, 4)}***${m.slice(-4)}`);
+  const safe = sanitized.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 500);
+  console.error("[image] 图片服务原始错误（已脱敏截断）:", safe);
+}
+
 // 统一请求 + 错误翻译：原始错误正文只进服务端日志，前端收中文话术。
 async function requestImageApi(endpoint: string, apiKey: string, init: RequestInit, signal?: AbortSignal): Promise<Record<string, unknown>[]> {
   const { signal: requestSignal, cleanup } = combinedSignal(signal);
@@ -152,7 +162,7 @@ async function requestImageApi(endpoint: string, apiKey: string, init: RequestIn
     }
     const text = await response.text();
     if (!response.ok) {
-      console.error("[image] 图片服务原始错误:", text);
+      logImageApiErrorBody(text);
       throw statusError(response.status);
     }
     let parsed: unknown;

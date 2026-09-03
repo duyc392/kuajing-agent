@@ -20,6 +20,9 @@ export interface ProductQuery {
   shopId: string;
 }
 
+// 测品状态联合类型：禁止字符串拼写漂移；null 表示普通在售商品。
+export type ProductTestingStatus = "testing" | "scaled" | "killed";
+
 // 用途：商品列表展示项：由接口返回的摘要（长度计数代替完整关系数据），商品列表组件的消费契约。
 export interface ProductSummary {
   id: string;
@@ -29,6 +32,7 @@ export interface ProductSummary {
   variantCount: number;
   copyCount: number;
   dnaBuilt: boolean;
+  testingStatus: ProductTestingStatus | null;
   createdAt: string;
 }
 
