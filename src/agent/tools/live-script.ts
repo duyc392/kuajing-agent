@@ -3,6 +3,7 @@
 import { Type, type Static } from "typebox";
 import type { AgentTool, AgentToolResult } from "@earendil-works/pi-agent-core";
 import { runLiveScriptGeneration } from "@/agent/live-script-flow";
+import { marketLanguageHint } from "@/lib/markets";
 import type { GenerateTextFn, LiveScriptToolDetails } from "@/types";
 
 const liveScriptParamsSchema = Type.Object({
@@ -14,7 +15,7 @@ const liveScriptParamsSchema = Type.Object({
   ),
   durationMinutes: Type.Number({ description: "直播总时长（分钟），卖家未说明时默认 60", minimum: 15, maximum: 600 }),
   language: Type.String({
-    description: "关键话术的目标语言代码：美国市场用 en，印尼 id，泰国 th，越南 vi，中文市场 zh",
+    description: "关键话术的目标语言代码：" + marketLanguageHint(),
     minLength: 2,
     maxLength: 8,
     pattern: "^[a-z]{2}(-[A-Z]{2})?$",

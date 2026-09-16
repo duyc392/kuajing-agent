@@ -57,3 +57,20 @@ export function marketToRegion(market: string): string | null {
   return MARKET_REGION_CODES[market] ?? null;
 }
 
+// 内容生成语言映射（系统提示词与生成工具的 language 参数说明共用此单源）；未列出的市场跟随店铺市场自选。
+const MARKET_LANGUAGES: Record<string, string> = {
+  "美国": "en",
+  "东南亚-印尼": "id",
+  "东南亚-泰国": "th",
+  "东南亚-越南": "vi",
+};
+
+// 语言选择说明文案：市场简称 + 语言代码，中文市场固定用 zh。
+export function marketLanguageHint(): string {
+  const pairs = Object.entries(MARKET_LANGUAGES).map(([market, language]) => {
+    const short = market.includes("-") ? market.split("-")[1] : market;
+    return `${short}用 ${language}`;
+  });
+  return `${pairs.join("，")}，中文市场用 zh`;
+}
+

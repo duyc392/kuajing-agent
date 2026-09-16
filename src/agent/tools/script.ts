@@ -2,6 +2,7 @@
 import { Type, type Static } from "typebox";
 import type { AgentTool, AgentToolResult } from "@earendil-works/pi-agent-core";
 import { runVideoScriptGeneration } from "@/agent/video-script-flow";
+import { marketLanguageHint } from "@/lib/markets";
 import type { GenerateTextFn, ScriptToolDetails } from "@/types";
 
 const scriptParamsSchema = Type.Object({
@@ -13,7 +14,7 @@ const scriptParamsSchema = Type.Object({
   }),
   duration: Type.Number({ description: "视频总时长（秒），卖家未说明时默认 30", minimum: 5, maximum: 600 }),
   language: Type.String({
-    description: "口播与字幕的目标语言代码：美国市场用 en，印尼 id，泰国 th，越南 vi，中文市场 zh",
+    description: "口播与字幕的目标语言代码：" + marketLanguageHint(),
     minLength: 2,
     maxLength: 8,
     pattern: "^[a-z]{2}(-[A-Z]{2})?$",

@@ -77,7 +77,7 @@ npm run dev            # 打开 http://localhost:3000
 | 目录 | 用途 |
 |------|------|
 | `src/app` | 页面与 API 路由（Next.js App Router） |
-| `src/components` | 界面组件（布局、对话、表单、设置；`shared/` 项目共享组件；`ui/` shadcn 基础组件） |
+| `src/components` | 界面组件（布局、对话、表单、设置；`shared/` 项目共享组件；`ui/` 为基础 UI 预留位，当前未引入组件库） |
 | `src/agent` | Pi Agent Harness 封装层：核心、工具、MCP、记忆、技能、提示词、知识检索 |
 | `src/services` | 业务服务层（`*.service.ts` 命名）：店铺、商品、脚本、对话、记忆、看板、导出、审计、图片 |
 | `src/types` | TypeScript 类型统一定义（业务域输入输出类型） |
@@ -88,9 +88,9 @@ npm run dev            # 打开 http://localhost:3000
 
 ## 技术栈
 
-Next.js 14 (App Router) · TypeScript · Tailwind CSS · shadcn/ui · zod · Prisma + SQLite · Pi Agent Harness SDK · MCP（FastMoss）
+Next.js 14 (App Router) · TypeScript · Tailwind CSS · zod · Prisma + SQLite · Pi Agent Harness SDK · MCP（FastMoss）
 
-> 组件目录约定：shadcn 基础组件（button、input、card、dialog 等）由 shadcn CLI 生成到 `src/components/ui/`；项目自己的共享组件放 `src/components/shared/`。
+> 组件目录约定：当前手写样式、未引入 UI 组件库；`src/components/ui/` 为基础 UI 预留位（若未来引入 shadcn，由 CLI 生成到此且不手动修改）；项目自己的共享组件放 `src/components/shared/`。
 > 图片生成入口：生成图片走 Agent 对话（生图工具调用 gpt-image-2），不经过 `api/images`；`api/images` 只负责图片档案的查询 / 应用 / 删除。
 
 ## 常见问题

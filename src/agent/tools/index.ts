@@ -5,6 +5,7 @@ import { createLiveScriptTool } from "@/agent/tools/live-script";
 import { createCompetitorTool, createMarketTool, createRecommendTool } from "@/agent/tools/selection";
 import { createImageVariantTool, createProductImageTool } from "@/agent/tools/image";
 import { createProposeSkillTool } from "@/agent/tools/skill";
+import { createLoadSkillTool } from "@/agent/tools/load-skill";
 import { createDatabaseTool } from "@/agent/tools/database";
 import { createSelectionWorkbenchTool } from "@/agent/tools/selection-workbench";
 
@@ -19,6 +20,7 @@ export function buildAgentTools(deps: CopywritingToolDeps) {
     createProductImageTool(deps),
     createImageVariantTool(deps),
     createProposeSkillTool(),
+    createLoadSkillTool(),
     createDatabaseTool(deps),
     createSelectionWorkbenchTool(),
   ];

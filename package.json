@@ -11,7 +11,8 @@
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "test": "tsx --test src/lib/content-json.test.ts src/services/mock-content-ops-source.test.ts && tsx --test src/lib/selection-finance.test.ts && tsx --test src/lib/public-path.test.ts && tsx --test src/services/product-dna.service.test.ts && tsx --test src/services/shot-requirements.service.test.ts && tsx --test src/services/selection.service.test.ts && tsx --test src/services/selection-promotion.service.test.ts && tsx --test src/app/api/selection/runs/route.test.ts && tsx --test src/agent/video-script-flow.test.ts && tsx --test prisma/content-cascade.test.ts",
+    "test": "tsx --test \"src/**/*.test.ts\" \"prisma/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
     "postinstall": "prisma generate"
   },
   "prisma": {

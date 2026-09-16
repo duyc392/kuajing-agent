@@ -13,16 +13,18 @@
 | 对话相关组件 | `src/components/chat/` | 小写中划线 |
 | 业务域组件 | `src/components/对应业务域/` | 如 `products/product-list.tsx` |
 | 通用组件 | `src/components/shared/` | 小写中划线 |
-| shadcn 基础组件 | `src/components/ui/` | CLI 生成，不手动修改 |
+| 基础 UI 预留位（当前未引入组件库，手写样式） | `src/components/ui/`（现为空） | 若未来引入 shadcn，由 CLI 生成到此且不手动修改 |
 | Agent 核心逻辑 | `src/agent/` | `core.ts`、`execute.ts` 等 |
-| Agent 工具 | `src/agent/tools/` | 一个工具一个文件，`index.ts` 注册 |
-| Agent 记忆 | `src/agent/memory/` | `short-term.ts`、`long-term.ts`、`extractor.ts` |
+| Agent 工具 | `src/agent/tools/` | 按业务域一个文件（可含多个相关工具），`index.ts` 统一注册 |
+| Agent 记忆 | 提取在 `src/agent/memory/extractor.ts`；短期/长期记忆的存储与查询在 `services/messages.service.ts` 与 `services/memory.service.ts`（数据库为唯一事实源） | — |
 | Agent 提示词 | `src/agent/prompts/` | `system.ts` 等 |
 | Agent 知识/技能 | `src/agent/knowledge/`、`src/agent/skills/` | — |
 | MCP 对接 | 入口 `src/agent/mcp/`；传输实现位于 `src/lib/fastmoss-client.ts`（服务层与 Agent 层共用，含配置读取 `readFastmossSettings`） | `fastmoss.ts` |
-| 业务逻辑（增删改查） | `src/services/` | `商品.service.ts` 格式 |
-| TypeScript 类型 | `src/types/` | 按业务域分文件或统一 `index.ts` |
-| 数据库客户端、工具函数 | `src/lib/` | `db.ts`、`config.ts`、`utils.ts` |
+| 业务逻辑（带数据库读写） | `src/services/` | 英文域名 `products.service.ts` 格式；模块内部数据源/接口文件可不带 `.service` 后缀 |
+| TypeScript 类型（跨层业务契约：API 入参出参、展示视图、工具卡片结构） | `src/types/` | 按业务域分文件或统一 `index.ts` |
+| TypeScript 类型（单模块私有：流水线参数、提示词上下文、内部中间结构） | 跟所属模块同文件 | 仅本模块消费，不进 `src/types/` |
+| 数据库客户端、工具函数、纯函数领域规则（无 IO 的业务计算，如 `selection-finance.ts`、`markets.ts`） | `src/lib/` | `db.ts`、`config.ts` 等 |
+| 自动化测试 | 与被测源码同目录 | `*.test.ts` 同名放置；数据库测试用 `prisma/test-utils.ts` 临时库（一文件一库，Prisma 单例不支持同进程跨库切换）；`npm test` 按 glob 自动发现，新增测试文件无需登记 |
 | 模型配置 | `src/config/` | `models.ts` |
 | 数据库模型 | `prisma/schema.prisma` | 唯一文件 |
 
@@ -52,6 +54,8 @@ Agent 工具与页面共用服务层，禁止把逻辑写两遍：
 ## 三、shopId 隔离（铁律）
 
 所有业务数据查询必须带 `where: { shopId }`；创建记录时 shopId 必填；不允许出现任何不带 shopId 过滤的业务查询。
+
+唯一豁免：全局对象（Skill 技能表）有意不随店铺隔离（卖家的工作规范跨店复用），以 schema 注释为准。
 
 ## 四、函数与类型
 
@@ -98,7 +102,7 @@ pages / components
 
 ## 七、Agent 工具编写规范
 
-每个工具一个文件，统一结构：`name` + 清楚的 `description`（Agent 靠它决定何时调用）+ zod 参数 schema + `execute`：
+每个业务域一个文件（可含多个相关工具），统一结构：`name` + 清楚的 `description`（Agent 靠它决定何时调用）+ TypeBox 参数 schema + `execute`：
 
 ```typescript
 import { Type } from "typebox"
@@ -139,10 +143,11 @@ export const copywritingTool = {
 - 不硬编码配置值（API 地址、模型名、市场列表 → config 文件或环境变量）。
 - 不假设数据一定存在：所有数据库查询结果必须处理 null。
 - 前端状态不用全局变量（用 React Context 或 zustand）。
+- 交付前必须通过 `npm run typecheck` 与 `npm test`（测试按 glob 自动发现，无需登记）。
 - 完成后列出所有创建和修改的文件清单。
 
 ## 十、绝对禁止清单
 
-1. 修改 `src/components/ui/` 下 shadcn 生成的文件（定制样式在业务组件里用 className 覆盖）。
+1. 修改 `src/components/ui/` 下未来由 shadcn CLI 生成的文件（当前未引入组件库；引入后定制样式在业务组件里用 className 覆盖）。
 2. 在 service 里 import React 或任何浏览器 API。
 3. 组件里直接写 fetch URL 字符串（必须走 `apiRequest` 封装）。

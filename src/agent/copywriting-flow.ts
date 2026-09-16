@@ -6,7 +6,9 @@ import { createCopy, listCopies } from "@/services/product-copies.service";
 import { listMemories } from "@/services/memory.service";
 import { MAX_CONTEXT_MEMORIES } from "@/config/memory";
 import { resolveProductByName } from "@/services/product-lookup.service";
+import { loadResidentSkillRules } from "@/agent/skills";
 import { buildCopySystemPrompt, buildCopyUserPrompt, type CopyProductContext, type PreviousCopyContext } from "@/agent/prompts/copy";
+import type { MemoryContextItem } from "@/agent/prompts/memory";
 import type { CopyToolDetails, GenerateTextFn } from "@/types";
 
 export interface RunCopyGenerationParams {
@@ -79,6 +81,33 @@ async function loadPreviousCopy(productId: string, shopId: string, feedback?: st
   return { title: current.title, description: current.description, sellingPoints: current.sellingPoints };
 }
 
+// 生成与市场规则校验：构建提示词（含记忆与常驻技能规范）、调用模型（留审计）、解析并确定性保留未涉及字段；
+// 美区规则不合格注入提示有限重试，用尽重试抛业务错误。
+async function generateValidatedCopy(
+  params: RunCopyGenerationParams,
+  context: { productContext: CopyProductContext; previous: PreviousCopyContext | null; memories: MemoryContextItem[]; skillRules: string[] },
+): Promise<ParsedCopy> {
+  const { productContext, previous, memories, skillRules } = context;
+  let extraInstruction = "";
+  for (let attempt = 0; attempt < MAX_RULE_RETRIES; attempt++) {
+    const userPrompt = buildCopyUserPrompt(productContext, params.feedback, previous, memories, skillRules) + (extraInstruction === "" ? "" : `\n${extraInstruction}`);
+    const text = await callWithGenerationAudit({
+      shopId: params.shopId,
+      type: "copywriting",
+      modelId: params.generateText.modelId ?? "unknown",
+      prompt: userPrompt,
+      call: () => params.generateText(buildCopySystemPrompt(params.language), userPrompt, params.signal),
+    });
+    const parsed = preserveUntouchedFields(parseCopyJson(text), previous, params.feedback);
+    if (!violatesMarketRule(params.language, parsed)) return parsed;
+    extraInstruction = "注意：上一版未满足市场要求，英文文案必须同时出现 free shipping 和 reviews，请重写。";
+    if (attempt === MAX_RULE_RETRIES - 1) {
+      throw new AppError("生成的英文文案缺少 free shipping 或 reviews 卖点，请重试", "COPY_RULE_ERROR", 502);
+    }
+  }
+  throw new AppError("文案生成失败，请重试", "COPY_GENERATE_ERROR", 502);
+}
+
 export async function runCopyGeneration(params: RunCopyGenerationParams): Promise<CopyToolDetails> {
   const product = await resolveProductByName({ productName: params.productName, shopId: params.shopId });
   const productContext: CopyProductContext = {
@@ -91,25 +120,9 @@ export async function runCopyGeneration(params: RunCopyGenerationParams): Promis
   const previous = await loadPreviousCopy(product.id, params.shopId, params.feedback);
   // 店铺长期记忆注入文案生成（PRD 故事 40：定位与偏好自动应用），受条数上限约束。
   const memories = (await listMemories(params.shopId)).slice(-MAX_CONTEXT_MEMORIES);
-  let extraInstruction = "";
-  let parsed: ParsedCopy | null = null;
-  for (let attempt = 0; attempt < MAX_RULE_RETRIES; attempt++) {
-    const userPrompt = buildCopyUserPrompt(productContext, params.feedback, previous, memories) + (extraInstruction === "" ? "" : `\n${extraInstruction}`);
-    const text = await callWithGenerationAudit({
-      shopId: params.shopId,
-      type: "copywriting",
-      modelId: params.generateText.modelId ?? "unknown",
-      prompt: userPrompt,
-      call: () => params.generateText(buildCopySystemPrompt(params.language), userPrompt, params.signal),
-    });
-    parsed = preserveUntouchedFields(parseCopyJson(text), previous, params.feedback);
-    if (!violatesMarketRule(params.language, parsed)) break;
-    extraInstruction = "注意：上一版未满足市场要求，英文文案必须同时出现 free shipping 和 reviews，请重写。";
-    if (attempt === MAX_RULE_RETRIES - 1) {
-      throw new AppError("生成的英文文案缺少 free shipping 或 reviews 卖点，请重试", "COPY_RULE_ERROR", 502);
-    }
-  }
-  if (!parsed) throw new AppError("文案生成失败，请重试", "COPY_GENERATE_ERROR", 502);
+  // 常驻技能规范注入文案生成（PRD 故事 46：技能对成品生效），只取常驻技能。
+  const skillRules = await loadResidentSkillRules();
+  const parsed = await generateValidatedCopy(params, { productContext, previous, memories, skillRules });
   const copy = await createCopy({
     productId: product.id,
     shopId: params.shopId,

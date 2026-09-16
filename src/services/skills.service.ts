@@ -7,7 +7,7 @@ import type { Skill } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { AppError, ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { MAX_ENABLED_SKILLS, MAX_SKILLS, SKILL_DESCRIPTION_MAX, SKILL_FILE_MAX_BYTES, SKILL_NAME_MAX, SKILL_PROMPT_MAX } from "@/config/skills";
-import type { SkillCreateInput, SkillView } from "@/types";
+import type { SkillCreateInput, SkillUpdateInput, SkillView } from "@/types";
 
 const SKILLS_DIR = path.join(process.cwd(), "skills");
 
@@ -48,6 +48,7 @@ async function toView(skill: Skill): Promise<SkillView> {
     filename: skill.filename,
     description: skill.description ?? "",
     content: await readSkillContent(skill.filename),
+    alwaysApply: skill.alwaysApply,
     enabled: skill.enabled,
     createdAt: skill.createdAt.toISOString(),
     updatedAt: skill.updatedAt.toISOString(),
@@ -119,8 +120,9 @@ async function writeSkillFile(filename: string, content: string): Promise<void> 
 // 新技能默认启用，超过已启用上限则拒绝，保证「已启用」与「实际注入生效」数量一致。
 export async function createSkill(input: SkillCreateInput): Promise<SkillView> {
   const { name, description, prompt } = normalize(input);
+  const alwaysApply = input.alwaysApply ?? true;
   const existingRows = await prisma.skill.findMany({
-    select: { id: true, name: true, description: true, filename: true, enabled: true },
+    select: { id: true, name: true, description: true, filename: true, enabled: true, alwaysApply: true },
   });
   if (existingRows.length >= MAX_SKILLS) {
     throw new ValidationError(`技能总数已达上限（${MAX_SKILLS} 个），请先删除不用的技能`);
@@ -133,9 +135,13 @@ export async function createSkill(input: SkillCreateInput): Promise<SkillView> {
   const existing = existingRows.find((row) => row.name.toLowerCase() === lower);
   if (existing) {
     const existingContent = await readSkillContent(existing.filename);
-    if ((existing.description ?? "") === description && existingContent === content) {
+    // 幂等条件含加载模式：模式不同不静默返回旧记录，提示到设置页切换，保证卖家选择不被忽略。
+    if ((existing.description ?? "") === description && existingContent === content && existing.alwaysApply === alwaysApply) {
       const row = await prisma.skill.findUniqueOrThrow({ where: { id: existing.id } });
       return toView(row);
+    }
+    if ((existing.description ?? "") === description && existingContent === content) {
+      throw new ConflictError(`已存在同名且内容相同的技能「${name}」，仅加载模式不同；请在设置页直接切换常驻开关`);
     }
     throw new ConflictError(`已存在同名技能「${name}」，请修改名称或先在设置页删除旧技能`);
   }
@@ -148,7 +154,7 @@ export async function createSkill(input: SkillCreateInput): Promise<SkillView> {
     filename = `${base}-${suffix}.md`;
   }
   const row = await prisma.skill.create({
-    data: { name, description: description === "" ? null : description, filename, enabled: true },
+    data: { name, description: description === "" ? null : description, filename, enabled: true, alwaysApply },
   });
   try {
     await writeSkillFile(filename, content);
@@ -160,16 +166,26 @@ export async function createSkill(input: SkillCreateInput): Promise<SkillView> {
   return toView(row);
 }
 
-export async function setSkillEnabled(id: string, enabled: boolean): Promise<SkillView> {
+// 更新启用状态与常驻开关：两个字段都可选但至少传一个（API 层已校验）；启用受已启用上限约束，常驻开关切换不影响上限计数。
+export async function updateSkill(id: string, input: SkillUpdateInput): Promise<SkillView> {
+  if (input.enabled === undefined && input.alwaysApply === undefined) {
+    throw new ValidationError("至少提供 enabled 或 alwaysApply 之一");
+  }
   const row = await prisma.skill.findUnique({ where: { id } });
   if (!row) throw new NotFoundError("技能不存在");
-  if (enabled && !row.enabled) {
+  if (input.enabled === true && !row.enabled) {
     const enabledCount = await prisma.skill.count({ where: { enabled: true } });
     if (enabledCount >= MAX_ENABLED_SKILLS) {
       throw new ValidationError(`已启用技能已达上限（${MAX_ENABLED_SKILLS} 个），请先禁用其他技能`);
     }
   }
-  const updated = await prisma.skill.update({ where: { id }, data: { enabled } });
+  const updated = await prisma.skill.update({
+    where: { id },
+    data: {
+      ...(input.enabled === undefined ? {} : { enabled: input.enabled }),
+      ...(input.alwaysApply === undefined ? {} : { alwaysApply: input.alwaysApply }),
+    },
+  });
   return toView(updated);
 }
 

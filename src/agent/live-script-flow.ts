@@ -9,6 +9,7 @@ import { listMemories } from "@/services/memory.service";
 import { MAX_CONTEXT_MEMORIES } from "@/config/memory";
 import { createLiveScript } from "@/services/live-scripts.service";
 import { buildLiveScriptSystemPrompt, buildLiveScriptUserPrompt, type LiveProductContext } from "@/agent/prompts/live-script";
+import { loadResidentSkillRules } from "@/agent/skills";
 import type { GenerateTextFn, LiveSegment, LiveScriptToolDetails } from "@/types";
 
 export interface RunLiveScriptParams {
@@ -89,8 +90,10 @@ export async function runLiveScriptGeneration(params: RunLiveScriptParams): Prom
   let parsed: ParsedFlow | null = null;
   // 店铺长期记忆注入直播流程生成（PRD 故事 40：定位与偏好自动应用），循环外加载一次、受条数上限约束。
   const memories = (await listMemories(params.shopId)).slice(-MAX_CONTEXT_MEMORIES);
+  // 常驻技能规范注入直播流程生成（PRD 故事 46：技能对成品生效），循环外加载一次、只取常驻技能。
+  const skillRules = await loadResidentSkillRules();
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    const userPrompt = buildLiveScriptUserPrompt({ durationMinutes: params.durationMinutes, style: params.style, products: contexts, memories })
+    const userPrompt = buildLiveScriptUserPrompt({ durationMinutes: params.durationMinutes, style: params.style, products: contexts, memories, skillRules })
       + (extraInstruction === "" ? "" : `\n${extraInstruction}`);
     const text = await callWithGenerationAudit({
       shopId: params.shopId,

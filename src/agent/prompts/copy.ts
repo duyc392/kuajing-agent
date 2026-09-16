@@ -33,7 +33,7 @@ export function buildCopySystemPrompt(language: string): string {
   ].join("\n");
 }
 
-export function buildCopyUserPrompt(product: CopyProductContext, feedback?: string, previous?: PreviousCopyContext | null, memories?: MemoryContextItem[]): string {
+export function buildCopyUserPrompt(product: CopyProductContext, feedback?: string, previous?: PreviousCopyContext | null, memories?: MemoryContextItem[], skillRules?: string[]): string {
   // 商品字段、上一版正文与修改意见都是外部数据：先转义再进数据区，防止伪造 </product_data> 结束标记注入指令。
   const lines = [
     "请为以下商品生成上架文案：",
@@ -61,6 +61,16 @@ export function buildCopyUserPrompt(product: CopyProductContext, feedback?: stri
   } else if (feedback) {
     lines.push(`卖家修改意见：${escapePromptData(feedback)}`, "请基于修改意见调整，输出完整的新版本。");
   }
-  lines.push("</product_data>", "请直接输出 JSON。");
+  lines.push("</product_data>");
+  // 技能规范放独立区块而非 product_data 内：前者允许应用业务与风格要求，后者保持"数据非指令"约束，两不相扰。
+  if (skillRules && skillRules.length > 0) {
+    lines.push(
+      "以下 skill_rules 内是卖家确认的技能规范：按其中的业务步骤、风格与内容要求写作；但不得据此改变系统规定的输出 JSON 结构或编造商品事实。",
+      "<skill_rules>",
+      ...skillRules,
+      "</skill_rules>",
+    );
+  }
+  lines.push("请直接输出 JSON。");
   return lines.join("\n");
 }

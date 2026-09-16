@@ -14,6 +14,8 @@ export default function SkillProposalCard({ call, messageId }: { call: ToolCallR
   const [localPhase, setLocalPhase] = useState<"confirmed" | "ignored" | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  // 常驻开关：默认取模型提议值，卖家可在确认前切换；旧提议详情没有该字段时按常驻处理。
+  const [alwaysApply, setAlwaysApply] = useState<boolean | null>(null);
   const busyRef = useRef(false);
   const phase = localPhase ?? call.proposalState ?? "pending";
 
@@ -24,6 +26,7 @@ export default function SkillProposalCard({ call, messageId }: { call: ToolCallR
     return <ToolStatusCard label={call.label} status="invalid" />;
   }
   const proposal: SkillProposalDetails = details;
+  const resident = alwaysApply ?? proposal.alwaysApply ?? true;
 
   async function persist(state: "confirmed" | "ignored", skillId?: string) {
     if (!messageId || !currentShopId) return;
@@ -45,6 +48,7 @@ export default function SkillProposalCard({ call, messageId }: { call: ToolCallR
         name: proposal.name,
         description: proposal.description,
         prompt: proposal.prompt,
+        alwaysApply: resident,
       });
       await persist("confirmed", skill.id);
       setLocalPhase("confirmed");
@@ -73,7 +77,11 @@ export default function SkillProposalCard({ call, messageId }: { call: ToolCallR
   }
 
   if (phase === "confirmed") {
-    return <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">✓ 已创建技能「{proposal.name}」，可在「设置 → 技能管理」查看、启用或删除。</div>;
+    return (
+      <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+        ✓ 已创建技能「{proposal.name}」，可在「设置 → 技能管理」查看、启用或删除。
+      </div>
+    );
   }
   if (phase === "ignored") {
     return <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">已忽略，未创建技能。</div>;
@@ -85,6 +93,18 @@ export default function SkillProposalCard({ call, messageId }: { call: ToolCallR
       <p className="text-sm font-medium text-gray-900">💡 建议沉淀为技能：{proposal.name}</p>
       {proposal.description !== "" && <p className="mt-1 text-xs text-gray-600">{proposal.description}</p>}
       <p className="mt-1 whitespace-pre-wrap text-xs text-gray-500">{proposal.prompt}</p>
+      <label className="mt-2 flex items-start gap-2 text-xs text-gray-600">
+        <input
+          type="checkbox"
+          checked={resident}
+          onChange={() => setAlwaysApply(!resident)}
+          disabled={busy}
+          className="mt-0.5 h-3.5 w-3.5"
+        />
+        <span>
+          常驻应用（每轮对话自动生效，并进入文案、脚本的成品生成）。取消勾选则按需加载：Agent 仅在对话中相关时读取完整规则，不进入成品生成；较长的操作手册建议按需。
+        </span>
+      </label>
       <div className="mt-2 flex gap-2">
         <button
           onClick={() => void confirm()}

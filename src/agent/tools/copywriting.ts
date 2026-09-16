@@ -2,6 +2,7 @@
 import { Type, type Static } from "typebox";
 import type { AgentTool, AgentToolResult } from "@earendil-works/pi-agent-core";
 import { runCopyGeneration } from "@/agent/copywriting-flow";
+import { marketLanguageHint } from "@/lib/markets";
 import type { CopyToolDetails, GenerateTextFn } from "@/types";
 
 const copyParamsSchema = Type.Object({
@@ -11,7 +12,7 @@ const copyParamsSchema = Type.Object({
     maxLength: 200,
   }),
   language: Type.String({
-    description: "目标语言代码：美国市场用 en，印尼 id，泰国 th，越南 vi，中文市场 zh",
+    description: "目标语言代码：" + marketLanguageHint(),
     minLength: 2,
     maxLength: 8,
     pattern: "^[a-z]{2}(-[A-Z]{2})?$",

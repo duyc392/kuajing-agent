@@ -9,6 +9,7 @@ import { listMemories } from "@/services/memory.service";
 import { MAX_CONTEXT_MEMORIES } from "@/config/memory";
 import { createScript } from "@/services/video-scripts.service";
 import { buildVideoScriptSystemPrompt, buildVideoScriptUserPrompt, type ScriptProductContext } from "@/agent/prompts/video-script";
+import { loadResidentSkillRules } from "@/agent/skills";
 import type { MemoryContextItem } from "@/agent/prompts/memory";
 import type { GenerateTextFn, ScriptShot, ScriptToolDetails, SelectionDraftScript, VideoInsightResult } from "@/types";
 
@@ -119,7 +120,7 @@ async function resolveProductContext(params: RunVideoScriptParams): Promise<{ pr
 }
 
 // 模型生成 + 结构化校验，有限重试；超限直接抛出业务错误（校验与重试规则见文件头）。
-async function generateWithValidation(params: RunVideoScriptParams, product: ScriptProductContext | null, memories: MemoryContextItem[] | undefined, insightBlock: string): Promise<ParsedScript> {
+async function generateWithValidation(params: RunVideoScriptParams, product: ScriptProductContext | null, memories: MemoryContextItem[] | undefined, insightBlock: string, skillRules: string[]): Promise<ParsedScript> {
   let extraInstruction = "";
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     const userPrompt = buildVideoScriptUserPrompt({
@@ -128,6 +129,7 @@ async function generateWithValidation(params: RunVideoScriptParams, product: Scr
       style: params.style,
       product,
       memories,
+      skillRules,
     }) + insightBlock + (extraInstruction === "" ? "" : `\n${extraInstruction}`);
     const text = await callWithGenerationAudit({
       shopId: params.shopId,
@@ -156,6 +158,8 @@ export async function runVideoScriptGeneration(params: RunVideoScriptParams): Pr
   const { product, productId } = await resolveProductContext(params);
   // 店铺长期记忆注入脚本生成（PRD 故事 40：定位与偏好自动应用），受条数上限约束。
   const memories = (await listMemories(params.shopId)).slice(-MAX_CONTEXT_MEMORIES);
+  // 常驻技能规范注入脚本生成（PRD 故事 46：技能对成品生效），只取常驻技能。
+  const skillRules = await loadResidentSkillRules();
   // 参考爆款视频透视（外部数据先转义再进数据区）：长度必须与参考视频一致，结构保持 4 段。
   const insightBlock =
     params.insight === undefined
@@ -167,7 +171,7 @@ export async function runVideoScriptGeneration(params: RunVideoScriptParams): Pr
             sections: params.insight.sections,
           }),
         )}\n</video_insight_data>\n请参考上述爆款视频的分镜节奏、叙事结构与台词风格重新创作，时长精确为 ${params.duration} 秒，保持「钩子 → 进品 → 演示 → 促单」四段结构。`;
-  const parsed = await generateWithValidation(params, product, memories, insightBlock);
+  const parsed = await generateWithValidation(params, product, memories, insightBlock, skillRules);
   if (params.persist === false) {
     return {
       scriptId: "",

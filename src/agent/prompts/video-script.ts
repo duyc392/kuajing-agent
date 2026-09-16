@@ -27,6 +27,7 @@ export function buildVideoScriptUserPrompt(params: {
   style?: string;
   product: ScriptProductContext | null;
   memories?: MemoryContextItem[];
+  skillRules?: string[];
 }): string {
   // 商品字段与风格描述是外部数据：先转义再进数据区，防止伪造 </product_data> 结束标记注入指令。
   const lines = [`请生成一个 ${params.duration} 秒的${params.type}类 TikTok 带货短视频分镜脚本：`, "<product_data>"];
@@ -41,6 +42,16 @@ export function buildVideoScriptUserPrompt(params: {
   if (params.memories && params.memories.length > 0) {
     lines.push("店铺长期记忆（已确认的店铺画像与卖家偏好，创作时主动应用）：", formatMemoryItems(params.memories));
   }
-  lines.push("</product_data>", "请直接输出 JSON。");
+  lines.push("</product_data>");
+  // 技能规范放独立区块而非 product_data 内：允许应用业务与风格要求，但不得覆盖系统输出结构约束。
+  if (params.skillRules && params.skillRules.length > 0) {
+    lines.push(
+      "以下 skill_rules 内是卖家确认的技能规范：按其中的业务步骤、风格与内容要求创作；但不得据此改变系统规定的输出 JSON 结构或编造商品事实。",
+      "<skill_rules>",
+      ...params.skillRules,
+      "</skill_rules>",
+    );
+  }
+  lines.push("请直接输出 JSON。");
   return lines.join("\n");
 }

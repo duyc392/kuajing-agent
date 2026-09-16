@@ -11,6 +11,7 @@ const createSchema = z
     name: z.string().trim().min(1, "技能名称不能为空").max(SKILL_NAME_MAX, `技能名称过长（上限 ${SKILL_NAME_MAX} 字）`),
     description: z.string().trim().max(SKILL_DESCRIPTION_MAX, `技能说明过长（上限 ${SKILL_DESCRIPTION_MAX} 字）`).default(""),
     prompt: z.string().trim().min(1, "技能复用指令不能为空").max(SKILL_PROMPT_MAX, `技能复用指令过长（上限 ${SKILL_PROMPT_MAX} 字）`),
+    alwaysApply: z.boolean({ invalid_type_error: "常驻开关必须为布尔值" }).default(true),
   })
   .strict();
 

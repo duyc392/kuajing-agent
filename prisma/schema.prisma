@@ -194,8 +194,9 @@ model Skill {
   id          String   @id @default(cuid())
   name        String // 技能名称
   filename    String // skills/ 目录下的文件名，如 "示例-美式口语化文案.md"
-  description String? // 技能说明
+  description String? // 技能说明（按需技能的目录行靠它判断何时加载）
   enabled     Boolean  @default(true) // 是否启用
+  alwaysApply Boolean  @default(true) // 常驻开关：true=每轮全文注入系统提示词；false=只列目录，经 load_skill 工具按需加载
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
