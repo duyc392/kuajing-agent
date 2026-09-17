@@ -30,7 +30,7 @@
 - 设置布局：`.settings-layout` + `.settings-nav-link`
 - 图标：`WorkspaceIcon`（src/components/shared/workspace-icon.tsx，统一 1.6 线宽线框图标）
 
-## 设计稿取舍（对照 public/ui-*-v1.png）
+## 设计稿取舍（对照本地归档的设计图，未入库）
 
 - 顶栏统一纯墨绿胶囊；设计稿中导航条渐变不实现。
 - 子页签激活用浅绿胶囊，不画下划线（去除双重激活线）。
