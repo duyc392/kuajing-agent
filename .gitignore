@@ -44,3 +44,6 @@ cleanread/
 
 # 测试临时数据库（content-cascade / product-dna 测试用，崩溃残留兜底）
 prisma/*test*.db*
+
+# 本地资料归档（与代码库无关的过程文档）
+资料归档/
