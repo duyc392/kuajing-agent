@@ -58,9 +58,10 @@ export default function ContentSidebar({ products, error, onRetry, selectedId, o
   const { counts, failedIds } = useVideoCounts(products, currentShopId);
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col gap-3 border-r border-gray-200 bg-gray-50 p-3">
+    <aside className="page-card flex flex-col gap-3 p-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-gray-900">选择创作商品</p>
+        <p className="text-sm font-semibold">创作商品</p>
+        {products !== null && <span className="status-pill">{products.length} 个</span>}
       </div>
       {error && <ErrorMessage message={error} onRetry={onRetry} />}
       {products === null && !error && <Loading text="加载商品…" />}
@@ -73,15 +74,17 @@ export default function ContentSidebar({ products, error, onRetry, selectedId, o
               <li key={product.id}>
                 <button
                   onClick={() => onSelect(product.id)}
-                  className={`w-full rounded-lg px-3 py-2 text-left ${active ? "bg-blue-50 ring-1 ring-blue-300" : "bg-white hover:bg-gray-100"}`}
+                  className={`w-full rounded-xl px-3 py-2.5 text-left transition-colors ${
+                    active ? "bg-[var(--workspace-soft)] ring-1 ring-[#9ecdb9]" : "hover:bg-[#f0f5f1]"
+                  }`}
                 >
-                  <p className="truncate text-sm font-medium text-gray-900">{product.name}</p>
-                  <p className="mt-0.5 flex items-center justify-between text-xs text-gray-500">
+                  <p className="truncate text-sm font-medium">{product.name}</p>
+                  <p className="mt-0.5 flex items-center justify-between text-xs text-[var(--workspace-muted)]">
                     <span>{product.category ?? "未分类"}</span>
                     {failedIds.has(product.id) ? (
                       <span className="rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] text-red-600" title="视频统计接口失败">统计失败</span>
                     ) : count !== undefined ? (
-                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${count > 0 ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"}`}>
+                      <span className={`status-pill !px-1.5 !py-0.5 text-[10px] ${count > 0 ? "" : ""}`} data-tone={count > 0 ? "ok" : undefined}>
                         {count > 0 ? `已发 ${count} 条视频` : "0 条视频"}
                       </span>
                     ) : null}
@@ -91,7 +94,7 @@ export default function ContentSidebar({ products, error, onRetry, selectedId, o
             );
           })}
           {products.length === 0 && (
-            <li className="rounded-xl border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-400">
+            <li className="rounded-xl border border-dashed border-[var(--workspace-border)] p-6 text-center text-sm text-[var(--workspace-muted)]">
               还没有商品，请先在「商品」页建档。
             </li>
           )}

@@ -51,14 +51,14 @@ export default function ShopForm() {
 
   return (
     <form onSubmit={handleSubmit} className="grid gap-5">
-      <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <section className="page-card p-5">
         <ShopFields value={value} onChange={setValue} />
       </section>
       {error && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
       <button
         type="submit"
         disabled={saving}
-        className="justify-self-start rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        className="btn btn-primary justify-self-start"
       >
         {saving ? "创建中…" : "创建店铺，进入工作台"}
       </button>

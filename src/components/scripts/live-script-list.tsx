@@ -15,7 +15,7 @@ function LiveScriptCard({ script }: { script: LiveScriptSummary }) {
   return (
     <Link
       href={`/scripts/live/${script.id}`}
-      className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:border-blue-300"
+      className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:border-[#62917d]"
     >
       <div className="min-w-0">
         <p className="text-sm font-medium text-gray-900">{formatMinutes(script.duration)} 直播流程</p>

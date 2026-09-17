@@ -27,15 +27,10 @@ export default function ProductSidebar({
   showCreate, setShowCreate, submitting, onSubmit, createError, onDismissCreateError,
 }: ProductSidebarProps) {
   return (
-    <aside className="flex w-64 shrink-0 flex-col gap-3 border-r border-gray-200 bg-gray-50 p-3">
+    <aside className="page-card flex flex-col gap-3 p-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-gray-900">商品</p>
-        <button
-          onClick={() => setShowCreate(!showCreate)}
-          className="rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700"
-        >
-          {showCreate ? "收起表单" : "＋ 新建"}
-        </button>
+        <p className="text-sm font-semibold">商品列表</p>
+        {products !== null && <span className="status-pill">{products.length} 个商品</span>}
       </div>
       {createError && (
         <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-2.5">
@@ -54,27 +49,31 @@ export default function ProductSidebar({
             <li key={product.id}>
               <button
                 onClick={() => onSelect(product.id)}
-                className={`w-full rounded-lg px-3 py-2 text-left ${selectedId === product.id ? "bg-blue-50 ring-1 ring-blue-300" : "bg-white hover:bg-gray-100"}`}
+                className={`w-full rounded-xl px-3 py-2.5 text-left transition-colors ${
+                  selectedId === product.id
+                    ? "bg-[var(--workspace-soft)] ring-1 ring-[#9ecdb9]"
+                    : "hover:bg-[#f0f5f1]"
+                }`}
               >
-                <p className="flex items-center justify-between gap-2 text-sm font-medium text-gray-900">
+                <p className="flex items-center justify-between gap-2 text-sm font-medium">
                   <span className="flex min-w-0 items-center gap-1.5">
                     <span className="truncate">{product.name}</span>
                     {product.testingStatus === "testing" && (
-                      <span className="shrink-0 rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">🟡 测品中</span>
+                      <span className="status-pill shrink-0 !px-1.5 !py-0.5 text-[10px] leading-none" data-tone="warn">测品中</span>
                     )}
                   </span>
-                  <span className="shrink-0 text-blue-600">{product.price !== null ? `¥${formatPrice(product.price)}` : "—"}</span>
+                  <span className="shrink-0 text-[13px] text-[var(--workspace-muted)]">{product.price !== null ? `¥${formatPrice(product.price)}` : "—"}</span>
                 </p>
-                <p className="mt-0.5 text-xs text-gray-500">
+                <p className="mt-0.5 text-xs text-[var(--workspace-muted)]">
                   {product.category ?? "未分类"} · 文案 {product.copyCount} 版 · 变体 {product.variantCount}
-                  <span className={`ml-1 ${product.dnaBuilt ? "font-medium text-green-600" : "text-gray-400"}`}>· {product.dnaBuilt ? "DNA已建" : "DNA未建"}</span>
+                  <span className={`ml-1 ${product.dnaBuilt ? "font-medium text-[#2e6350]" : ""}`}>· {product.dnaBuilt ? "DNA 已建" : "DNA 未建"}</span>
                 </p>
               </button>
             </li>
           ))}
           {products.length === 0 && (
-            <li className="rounded-xl border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-400">
-              还没有商品，点右上角「新建」建档。
+            <li className="rounded-xl border border-dashed border-[var(--workspace-border)] p-6 text-center text-sm text-[var(--workspace-muted)]">
+              还没有商品，点右上角「新建商品」建档。
             </li>
           )}
         </ul>

@@ -13,7 +13,7 @@ import type { ShotRequirementView } from "@/types/content";
 
 const STATUS_CLASS: Record<string, string> = {
   待拍摄: "bg-red-50 text-red-600",
-  拍摄中: "bg-blue-50 text-blue-600",
+  拍摄中: "bg-[var(--workspace-soft)] text-[#2e6350]",
   已归档复用: "bg-green-50 text-green-700",
 };
 
@@ -80,24 +80,24 @@ export default function ShotRequirementsTab({ productId }: { productId: string }
   }
 
   if (!currentShopId) {
-    return <p className="px-4 py-10 text-center text-sm text-gray-400">还没有店铺，请先在右上角创建店铺。</p>;
+    return <p className="p-10 text-center text-sm text-[var(--workspace-muted)]">还没有店铺，请先在右上角创建店铺。</p>;
   }
 
   return (
     <div className="grid gap-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-gray-900">
-          📋 摄影师与剪辑执行表 {shots !== null && `(已关联 ${shots.length} 个镜头 · 从脚本分镜自动去重合并)`}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-semibold">
+          摄影师与剪辑执行表 {shots !== null && `(已关联 ${shots.length} 个镜头 · 从脚本分镜自动去重合并)`}
         </p>
-        <button onClick={() => void handleExport()} className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
-          📥 导出飞书表格
+        <button onClick={() => void handleExport()} className="btn btn-outline btn-sm">
+          导出飞书表格
         </button>
       </div>
-      {message && <p className="text-sm text-green-600">{message}</p>}
+      {message && <p className="text-sm text-[#2e6350]">{message}</p>}
       {error && <ErrorMessage message={error} onRetry={() => setReloadCount((count) => count + 1)} />}
       {shots === null && !error && <Loading text="加载镜头…" />}
       {shots !== null && !error && shots.length === 0 && (
-        <p className="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-400">
+        <p className="page-card border-dashed p-8 text-center text-sm text-[var(--workspace-muted)]">
           还没有镜头需求。先在「脚本库」确认脚本（或让 AI 生成），系统会自动把分镜合并成拍摄执行表。
         </p>
       )}
@@ -110,29 +110,29 @@ export default function ShotRequirementsTab({ productId }: { productId: string }
 
 function ShotTable({ shots, onCycle }: { shots: ShotRequirementView[]; onCycle: (shot: ShotRequirementView) => void }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-200">
-      <table className="w-full border-collapse bg-white text-left">
+    <div className="overflow-x-auto page-card">
+      <table className="w-full border-collapse text-left">
         <thead>
-          <tr className="border-b border-gray-100 bg-gray-50/70">
-            <th className="px-3 py-2 text-xs font-medium text-gray-500">镜头ID</th>
-            <th className="px-3 py-2 text-xs font-medium text-gray-500">拍摄场景</th>
-            <th className="px-3 py-2 text-xs font-medium text-gray-500">景别与动作要点</th>
-            <th className="px-3 py-2 text-xs font-medium text-gray-500">道具与打光</th>
-            <th className="px-3 py-2 text-xs font-medium text-gray-500">共用脚本</th>
-            <th className="px-3 py-2 text-xs font-medium text-gray-500">执行状态</th>
+          <tr className="border-b border-[var(--workspace-border)] bg-[#f0f4f1]">
+            <th className="px-3 py-2 text-xs font-medium text-[var(--workspace-muted)]">镜头ID</th>
+            <th className="px-3 py-2 text-xs font-medium text-[var(--workspace-muted)]">拍摄场景</th>
+            <th className="px-3 py-2 text-xs font-medium text-[var(--workspace-muted)]">景别与动作要点</th>
+            <th className="px-3 py-2 text-xs font-medium text-[var(--workspace-muted)]">道具与打光</th>
+            <th className="px-3 py-2 text-xs font-medium text-[var(--workspace-muted)]">共用脚本</th>
+            <th className="px-3 py-2 text-xs font-medium text-[var(--workspace-muted)]">执行状态</th>
           </tr>
         </thead>
         <tbody>
           {shots.map((shot) => (
-            <tr key={shot.id} className="border-b border-gray-100 last:border-b-0">
-              <td className="px-3 py-2.5 text-sm font-semibold text-gray-900">#{shot.shotCode}</td>
-              <td className="px-3 py-2.5 text-sm text-gray-600">📍 {shot.scene}</td>
-              <td className="px-3 py-2.5 text-sm text-gray-600">{shot.actionDescription}</td>
-              <td className="max-w-40 px-3 py-2.5 text-sm text-gray-500">{shot.propsAndLighting || "待补充"}</td>
-              <td className="px-3 py-2.5 text-sm text-gray-600">
+            <tr key={shot.id} className="border-b border-[var(--workspace-border)] last:border-b-0">
+              <td className="px-3 py-2.5 text-sm font-semibold">#{shot.shotCode}</td>
+              <td className="px-3 py-2.5 text-sm text-[#3b534c]">{shot.scene}</td>
+              <td className="px-3 py-2.5 text-sm text-[#3b534c]">{shot.actionDescription}</td>
+              <td className="max-w-40 px-3 py-2.5 text-sm text-[var(--workspace-muted)]">{shot.propsAndLighting || "待补充"}</td>
+              <td className="px-3 py-2.5 text-sm text-[#3b534c]">
                 <div className="flex flex-wrap gap-1">
                       {shot.scriptIds.map((scriptId, index) => (
-                        <span key={scriptId} className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-600">
+                        <span key={scriptId} className="rounded bg-[#f0f4f1] px-1.5 py-0.5 text-[10px] text-[var(--workspace-muted)]">
                           脚本 {String.fromCharCode(65 + index)}
                         </span>
                   ))}

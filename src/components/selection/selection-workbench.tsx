@@ -40,21 +40,21 @@ function PipelineProgressSection({ running, done, failed, error, onRetry }: { ru
 
   if (!running && !done && !failed) return null;
   return (
-    <section className={`rounded-xl border p-4 text-white shadow-md ${failed ? "border-rose-500 bg-slate-900" : "border-slate-800 bg-slate-900"}`}>
+    <section className={`page-card p-4 ${failed ? "border-red-200" : ""}`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className={`h-2.5 w-2.5 rounded-full ${failed ? "bg-rose-500" : "bg-blue-500"} ${running ? "animate-pulse" : ""}`}></span>
+          <span className={`h-2.5 w-2.5 rounded-full ${failed ? "bg-red-500" : "bg-[#41876d]"} ${running ? "animate-pulse" : ""}`}></span>
           <span className="text-xs font-bold tracking-wide">{current}</span>
         </div>
         {failed && (
-          <button type="button" onClick={onRetry} className="rounded-lg bg-blue-600 px-3 py-1 text-xs font-semibold hover:bg-blue-700">重试</button>
+          <button type="button" onClick={onRetry} className="btn btn-primary btn-sm">重试</button>
         )}
       </div>
-      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
-        <div className={`h-full transition-all duration-500 ${failed ? "bg-rose-500" : "bg-blue-500"}`} style={{ width: `${(visibleSteps / 5) * 100}%` }} />
+      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[#e5ece8]">
+        <div className={`h-full transition-all duration-500 ${failed ? "bg-red-500" : "bg-[#41876d]"}`} style={{ width: `${(visibleSteps / 5) * 100}%` }} />
       </div>
-      {failed && <p className="mt-2 text-xs text-rose-300">{error}</p>}
-      <div className="mt-3 grid grid-cols-5 gap-2 pt-1 text-[11px] text-slate-400">
+      {failed && <p className="mt-2 text-xs text-red-600">{error}</p>}
+      <div className="mt-3 grid grid-cols-5 gap-2 pt-1 text-[11px] text-[var(--workspace-muted)]">
         {PIPELINE_STEPS.map((step, index) => {
           const isErrorStep = failed && index === visibleSteps - 1;
           const isSuccessStep = !failed && index < visibleSteps;
@@ -62,7 +62,7 @@ function PipelineProgressSection({ running, done, failed, error, onRetry }: { ru
             <div
               key={step.label}
               className={`flex items-center gap-1 ${
-                isErrorStep ? "font-semibold text-rose-400" : isSuccessStep ? "font-semibold text-emerald-400" : "text-slate-500"
+                isErrorStep ? "font-semibold text-red-500" : isSuccessStep ? "font-semibold text-[#2e6350]" : ""
               }`}
             >
               <span>{isErrorStep ? "✗" : isSuccessStep ? "✓" : "○"}</span> {step.label}
@@ -133,8 +133,20 @@ export default function SelectionWorkbench() {
   const visibleCandidates = scratchpad?.candidates ?? [];
 
   return (
-    <div className="mx-auto max-w-[1720px] space-y-5 p-6">
-      <SelectionFilters disabled={running} onRun={startPipeline} />
+    <div className="page-shell mx-auto max-w-[1720px] !px-0">
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">选品调研</h1>
+          <p className="page-subtitle">先看数据，再做选择。</p>
+        </div>
+        <div className="page-actions">
+          <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("open-agent-drawer"))} className="btn btn-outline">
+            <span className="text-[13px]">✦</span>Agent 助手
+          </button>
+        </div>
+      </header>
+      <div className="grid gap-5">
+        <SelectionFilters disabled={running} onRun={startPipeline} />
       <PipelineProgressSection running={running} done={pipelineDone} failed={runError !== ""} error={runError} onRetry={() => { if (lastFilters) startPipeline(lastFilters); }} />
 
       <TableToolbar
@@ -147,37 +159,69 @@ export default function SelectionWorkbench() {
 
       <CandidateTable candidates={visibleCandidates} highlightThreshold={highlightThreshold} onToggle={toggleCandidate} onToggleAll={toggleAll} onEditCost={handleEditCost} onKill={killCandidate} onRestore={restoreCandidate} onVideoClick={setVideoCandidate} onPromote={(candidate) => setConfirmCandidates([candidate])} />
 
+      <SelectionDialogs
+        shopId={shopId}
+        videoCandidate={videoCandidate}
+        confirmCandidates={confirmCandidates}
+        promoteResult={promoteResult}
+        promoting={promoting}
+        toast={toast}
+        onCloseVideo={() => setVideoCandidate(null)}
+        onApplyScript={(candidateId, script) => { applyCustomScript(candidateId, script); showToast("已套用分镜，临时脚本将随推进一起入库"); }}
+        onCloseConfirm={() => setConfirmCandidates(null)}
+        onConfirmPromote={(candidates) => { void runConfirmedPromote(candidates); }}
+        onCloseResult={() => setPromoteResult(null)}
+      />
+      </div>
+    </div>
+  );
+}
+
+// 弹窗与提示组合：视频透视、推进确认、推进结果、Toast 的条件渲染，参数全部来自工作台状态。
+function SelectionDialogs(props: {
+  shopId: string | null;
+  videoCandidate: SelectionCandidate | null;
+  confirmCandidates: SelectionCandidate[] | null;
+  promoteResult: { promoted: number; failed: string[] } | null;
+  promoting: boolean;
+  toast: { message: string; tone: "ok" | "error" } | null;
+  onCloseVideo: () => void;
+  onApplyScript: (candidateId: string, script: GenerateDraftScriptResult["script"]) => void;
+  onCloseConfirm: () => void;
+  onConfirmPromote: (candidates: SelectionCandidate[]) => void;
+  onCloseResult: () => void;
+}) {
+  const { shopId, videoCandidate, confirmCandidates, promoteResult, promoting, toast } = props;
+  return (
+    <>
       {videoCandidate !== null && (
         <VideoDeconstructionModal
           candidate={videoCandidate}
           shopId={shopId}
-          onClose={() => setVideoCandidate(null)}
-          onApply={(candidateId, script: GenerateDraftScriptResult["script"]) => { applyCustomScript(candidateId, script); showToast("已套用分镜，临时脚本将随推进一起入库"); }}
+          onClose={props.onCloseVideo}
+          onApply={props.onApplyScript}
         />
       )}
-
       {confirmCandidates !== null && (
-        <PromoteConfirmModal candidates={confirmCandidates} promoting={promoting} onCancel={() => setConfirmCandidates(null)} onConfirm={() => { void runConfirmedPromote(confirmCandidates); }} />
+        <PromoteConfirmModal candidates={confirmCandidates} promoting={promoting} onCancel={props.onCloseConfirm} onConfirm={() => props.onConfirmPromote(confirmCandidates)} />
       )}
-
-      {promoteResult !== null && <PromoteResultModal result={promoteResult} onClose={() => setPromoteResult(null)} />}
-
+      {promoteResult !== null && <PromoteResultModal result={promoteResult} onClose={props.onCloseResult} />}
       {toast !== null && (
-        <div className={`fixed left-1/2 top-5 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full px-4 py-2 text-xs font-medium text-white shadow-lg ${toast.tone === "ok" ? "bg-slate-900" : "bg-rose-600"}`}>
-          <span className={toast.tone === "ok" ? "text-emerald-400" : "text-rose-100"}>{toast.tone === "ok" ? "✓" : "✕"}</span> {toast.message}
+        <div className={`fixed left-1/2 top-5 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full px-4 py-2 text-xs font-medium text-white shadow-lg ${toast.tone === "ok" ? "bg-[#21312d]" : "bg-red-600"}`}>
+          <span className={toast.tone === "ok" ? "text-[#78c7ad]" : "text-red-100"}>{toast.tone === "ok" ? "✓" : "✕"}</span> {toast.message}
         </div>
       )}
-    </div>
+    </>
   );
 }
 
 // 表格顶栏：候选数、手动添加（本地表单收集 → 候选重算）、推进按钮与选中计数。
 function TableToolbar({ count, selectedCount, promoting, onPromote, onSubmitManual }: { count: number; selectedCount: number; promoting: boolean; onPromote: () => void; onSubmitManual: (input: ManualCandidateInput) => void }) {
   return (
-    <section className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+    <section className="page-card flex flex-wrap items-center justify-between gap-3 p-4">
       <div className="flex items-center gap-2">
-        <h2 className="text-sm font-bold text-gray-900">选品分析表</h2>
-        <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">{count} 款候选品</span>
+        <h2 className="text-sm font-bold">候选商品</h2>
+        <span className="status-pill">{count} 款候选品</span>
       </div>
       <div className="flex items-center gap-2.5">
         <ManualAddButton onSubmit={onSubmitManual} />
@@ -185,9 +229,9 @@ function TableToolbar({ count, selectedCount, promoting, onPromote, onSubmitManu
           type="button"
           disabled={selectedCount === 0 || promoting}
           onClick={onPromote}
-          className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="btn btn-primary btn-sm"
         >
-          <span>➡️</span> 推进至测品池 <span className="rounded-full bg-emerald-800 px-1.5 py-0.5 text-[10px] font-bold text-emerald-100">{selectedCount}</span>
+          推进至测品池 <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px] font-bold">{selectedCount}</span>
         </button>
       </div>
     </section>
@@ -227,25 +271,25 @@ function ManualAddButton({ onSubmit }: { onSubmit: (input: ManualCandidateInput)
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
-        <span className="text-gray-400">＋</span> 手动添加商品
+      <button type="button" onClick={() => setOpen(true)} className="btn btn-outline btn-sm">
+        ＋ 手动添加商品
       </button>
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-            <h3 className="text-sm font-bold text-gray-900">手动添加商品</h3>
-            <p className="mt-1 text-[11px] text-gray-400">添加后按当前筛选规则自动计算利润与 Max CPA，可双击采购成本调价。</p>
-            <FieldRow label="商品名称"><input value={name} onChange={(event) => setName(event.target.value)} className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2" placeholder="如 多功能磁吸浴室置物架" /></FieldRow>
-            <FieldRow label="类目"><input value={category} onChange={(event) => setCategory(event.target.value)} className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2" /></FieldRow>
+            <h3 className="text-sm font-bold">手动添加商品</h3>
+            <p className="mt-1 text-[11px] text-[var(--workspace-muted)]">添加后按当前筛选规则自动计算利润与 Max CPA，可双击采购成本调价。</p>
+            <FieldRow label="商品名称"><input value={name} onChange={(event) => setName(event.target.value)} className="field-input" placeholder="如 多功能磁吸浴室置物架" /></FieldRow>
+            <FieldRow label="类目"><input value={category} onChange={(event) => setCategory(event.target.value)} className="field-input" /></FieldRow>
             <div className="grid grid-cols-3 gap-3">
-              <FieldRow label="拟定售价 ($)"><input value={sellingPrice} onChange={(event) => setSellingPrice(event.target.value)} inputMode="decimal" className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2" /></FieldRow>
-              <FieldRow label="采购成本 (¥)"><input value={costRmb} onChange={(event) => setCostRmb(event.target.value)} inputMode="decimal" className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2" /></FieldRow>
-              <FieldRow label="重量 (g)"><input value={weightGrams} onChange={(event) => setWeightGrams(event.target.value)} inputMode="numeric" className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2" /></FieldRow>
+              <FieldRow label="拟定售价 ($)"><input value={sellingPrice} onChange={(event) => setSellingPrice(event.target.value)} inputMode="decimal" className="field-input" /></FieldRow>
+              <FieldRow label="采购成本 (¥)"><input value={costRmb} onChange={(event) => setCostRmb(event.target.value)} inputMode="decimal" className="field-input" /></FieldRow>
+              <FieldRow label="重量 (g)"><input value={weightGrams} onChange={(event) => setWeightGrams(event.target.value)} inputMode="numeric" className="field-input" /></FieldRow>
             </div>
-            {error !== "" && <p className="mt-3 text-xs text-rose-600">{error}</p>}
+            {error !== "" && <p className="mt-3 text-xs text-red-600">{error}</p>}
             <div className="mt-5 flex justify-end gap-2">
-              <button type="button" onClick={() => setOpen(false)} className="rounded-lg bg-gray-100 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-200">取消</button>
-              <button type="button" onClick={submit} className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700">添加并重算</button>
+              <button type="button" onClick={() => setOpen(false)} className="btn btn-outline btn-sm">取消</button>
+              <button type="button" onClick={submit} className="btn btn-primary btn-sm">添加并重算</button>
             </div>
           </div>
         </div>
@@ -257,7 +301,7 @@ function ManualAddButton({ onSubmit }: { onSubmit: (input: ManualCandidateInput)
 function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="mt-3 block">
-      <span className="mb-1 block text-xs font-medium text-gray-600">{label}</span>
+      <span className="mb-1 block text-xs font-medium text-[var(--workspace-muted)]">{label}</span>
       {children}
     </label>
   );
@@ -284,8 +328,8 @@ function PromoteConfirmModal({ candidates, promoting, onCancel, onConfirm }: { c
           <p className="mt-1 text-gray-400">过程不可逆？可点击「撤销淘汰」恢复原候选。</p>
         </div>
         <div className="mt-5 flex justify-end gap-3">
-          <button type="button" onClick={onCancel} disabled={promoting} className="rounded-lg bg-gray-100 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-200">取消</button>
-          <button type="button" onClick={onConfirm} disabled={promoting} className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50">
+          <button type="button" onClick={onCancel} disabled={promoting} className="btn btn-outline btn-sm">取消</button>
+          <button type="button" onClick={onConfirm} disabled={promoting} className="btn btn-primary btn-sm">
             {promoting ? "推进中…" : "确认推进"}
           </button>
         </div>
@@ -325,7 +369,7 @@ function PromoteResultModal({ result, onClose }: { result: { promoted: number; f
         <div className="mt-5 flex justify-end gap-3">
           <button type="button" onClick={onClose} className="rounded-lg bg-gray-100 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-200">留在此页</button>
           {allOk && (
-            <Link href="/content" className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-700">
+            <Link href="/content" className="flex items-center gap-1.5 rounded-lg bg-[var(--workspace-primary)] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#315647]">
               前往内容创作工坊 →
             </Link>
           )}

@@ -19,14 +19,14 @@ function ShopInfo({ shop, isCurrent }: { shop: ShopOverview; isCurrent: boolean 
   return (
     <div>
       <div className="flex items-center gap-2">
-        <h2 className="text-base font-semibold text-gray-900">{shop.name}</h2>
-        {isCurrent && <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">当前店铺</span>}
-        {shop.archived && <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600">已归档</span>}
+        <h2 className="text-base font-semibold">{shop.name}</h2>
+        {isCurrent && <span className="status-pill" data-tone="ok">当前店铺</span>}
+        {shop.archived && <span className="status-pill">已归档</span>}
       </div>
-      <p className="mt-1 text-xs text-gray-500">
+      <p className="mt-1 text-xs text-[var(--workspace-muted)]">
         {shop.market} · {shop.productCount} 个商品 · 创建于 {new Date(shop.createdAt).toLocaleDateString("zh-CN")}
       </p>
-      {shop.description && <p className="mt-2 text-sm text-gray-600">{shop.description}</p>}
+      {shop.description && <p className="mt-2 text-sm text-[#3b534c]">{shop.description}</p>}
     </div>
   );
 }
@@ -41,22 +41,22 @@ interface ShopActionsProps {
 }
 
 function ShopActions({ shop, isCurrent, busy, onSwitch, onEdit, onToggleArchive }: ShopActionsProps) {
-  const buttonClass = "rounded-lg border px-3 py-1.5 text-sm";
+  const buttonClass = "btn btn-outline btn-sm";
   return (
     <div className="flex shrink-0 flex-col gap-2">
       {!isCurrent && !shop.archived && (
-        <button type="button" onClick={onSwitch} className={`${buttonClass} border-blue-300 text-blue-700 hover:bg-blue-50`}>
+        <button type="button" onClick={onSwitch} className="btn btn-primary btn-sm">
           设为当前
         </button>
       )}
-      <button type="button" onClick={onEdit} className={`${buttonClass} border-gray-300 text-gray-700 hover:bg-gray-50`}>
+      <button type="button" onClick={onEdit} className={buttonClass}>
         编辑
       </button>
       <button
         type="button"
         onClick={onToggleArchive}
         disabled={busy}
-        className={`${buttonClass} border-gray-300 text-gray-500 hover:bg-gray-50 disabled:opacity-50`}
+        className={buttonClass}
       >
         {shop.archived ? "恢复" : "归档"}
       </button>
@@ -103,10 +103,10 @@ function ShopEditForm({ shop, onDone }: ShopEditFormProps) {
       <ShopFields value={draft} onChange={setDraft} />
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-3 text-sm">
-        <button type="button" onClick={save} disabled={busy} className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+        <button type="button" onClick={save} disabled={busy} className="btn btn-primary btn-sm">
           {busy ? "保存中…" : "保存修改"}
         </button>
-        <button type="button" onClick={onDone} className="rounded-lg border border-gray-300 px-4 py-2 text-gray-600 hover:bg-gray-50">
+        <button type="button" onClick={onDone} className="btn btn-outline btn-sm">
           取消
         </button>
       </div>
@@ -146,8 +146,8 @@ function ShopCard({ shop, isCurrent, onSwitch, onReload }: ShopCardProps) {
 
   return (
     <section
-      className={`rounded-xl border bg-white p-5 shadow-sm ${
-        isCurrent && !shop.archived ? "border-blue-400 ring-1 ring-blue-300" : "border-gray-200"
+      className={`page-card p-5 ${
+        isCurrent && !shop.archived ? "ring-1 ring-[#9ecdb9]" : ""
       } ${shop.archived ? "opacity-70" : ""}`}
     >
       {editing ? (
@@ -181,14 +181,14 @@ interface ShopToolbarProps {
 function ShopToolbar({ total, archivedCount, showArchived, currentName, onToggleArchived }: ShopToolbarProps) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <p className="text-sm text-gray-500">共 {total} 家店铺 · 当前：{currentName}</p>
+      <p className="text-sm text-[var(--workspace-muted)]">共 {total} 家店铺 · 当前：{currentName}</p>
       <div className="flex items-center gap-3 text-sm">
         {archivedCount > 0 && (
-          <button type="button" onClick={onToggleArchived} className="text-gray-600 underline">
+          <button type="button" onClick={onToggleArchived} className="text-[#246750] underline">
             {showArchived ? "隐藏归档店铺" : `显示归档店铺（${archivedCount}）`}
           </button>
         )}
-        <Link href="/create-shop" className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">
+        <Link href="/create-shop" className="btn btn-primary btn-sm">
           ＋ 新建店铺
         </Link>
       </div>
@@ -210,7 +210,7 @@ function ShopListView({ shops, currentShopId, onSwitch, onReload }: ShopListView
         <ShopCard key={shop.id} shop={shop} isCurrent={shop.id === currentShopId} onSwitch={onSwitch} onReload={onReload} />
       ))}
       {shops.length === 0 && (
-        <p className="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-400">
+        <p className="page-card border-dashed p-8 text-center text-sm text-[var(--workspace-muted)]">
           还没有店铺，点击右上角「新建店铺」开始。
         </p>
       )}

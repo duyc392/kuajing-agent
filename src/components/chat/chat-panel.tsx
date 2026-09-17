@@ -2,7 +2,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { FormEvent } from "react";
+import { ChatInput } from "@/components/chat/chat-input";
+export { ChatInput } from "@/components/chat/chat-input";
 import { usePathname } from "next/navigation";
 import { apiRequest } from "@/lib/api-client";
 import { streamChatRequest } from "@/lib/api-stream";
@@ -14,7 +15,8 @@ import ErrorMessage from "@/components/shared/error-message";
 import { useShops } from "@/components/shop/shop-context";
 import { readSelectionSummary } from "@/components/selection/selection-context";
 import { readProductSnapshot } from "@/components/chat/product-snapshot";
-import type { ChatStreamEvent, MessageView, ToolCallRecord } from "@/types";
+import type { ChatStreamEvent, MessageView, ScriptToolDetails, ToolCallRecord } from "@/types";
+import { SCRIPT_TOOL_NAME } from "@/types";
 
 interface MessageListProps {
   messages: MessageView[];
@@ -45,53 +47,13 @@ function MessageList({ messages, activeTools, streamText, bottomRef }: MessageLi
   );
 }
 
-interface ChatInputProps {
-  value: string;
-  onChange: (next: string) => void;
-  disabled: boolean;
-  onSubmit: () => void;
-}
-
-export function ChatInput({ value, onChange, disabled, onSubmit }: ChatInputProps) {
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    onSubmit();
-  }
-  return (
-    <div className="border-t border-gray-200 bg-white p-4">
-      <form onSubmit={handleSubmit} className="mx-auto flex w-full max-w-3xl items-end gap-3">
-        <textarea
-          className="min-h-[44px] flex-1 resize-none rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          rows={2}
-          maxLength={20000}
-          placeholder="输入消息，Enter 发送（Shift + Enter 换行）"
-          value={value}
-          disabled={disabled}
-          onChange={(event) => onChange(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
-              event.preventDefault();
-              onSubmit();
-            }
-          }}
-        />
-        <button
-          type="submit"
-          disabled={disabled || value.trim() === ""}
-          className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-        >
-          {disabled ? "回复中…" : "发送"}
-        </button>
-      </form>
-    </div>
-  );
-}
-
 interface ChatPanelProps {
   conversationId: string;
   onTurnComplete?: () => void;
   /** 抽屉懒创建场景：首条消息在历史加载完成后自动发送一次（正常对话不传）。 */
   autoSendMessage?: string;
+  /** 最新视频脚本结果上抛（供工作台右侧只读预览）：取最近一条成功脚本工具调用的 scriptId，无则为 null。 */
+  onScriptResult?: (scriptId: string | null) => void;
 }
 
 // 新内容出现时把消息区滚到底部。
@@ -189,6 +151,19 @@ function useAutoSend(autoSendMessage: string | undefined, messages: MessageView[
   }, [autoSendMessage, messages]);
 }
 
+// 页面数据快照拼装：选品候选摘要（沙盒存在时）+ 商品页实时快照（商品详情页打开时），
+// 均为数据区标记、声明"与前文冲突时以此为准"；快照读取失败静默跳过，不阻断发送。
+async function buildEffectiveContent(content: string, pathname: string, shopId: string): Promise<string> {
+  const blocks: string[] = [];
+  const summary = readSelectionSummary(shopId);
+  if (summary !== null) {
+    blocks.push(`[selection-summary]\n以下为当前选品候选池的最新摘要，与前文冲突时以此为准：\n${summary}\n[/selection-summary]`);
+  }
+  const productSnapshot = await readProductSnapshot(pathname, shopId);
+  if (productSnapshot !== null) blocks.push(productSnapshot);
+  return blocks.length === 0 ? content : `${content}\n\n${blocks.join("\n\n")}`;
+}
+
 // 发送与流式回复：维护发送锁、流式文本与工具状态；组件卸载时取消请求；懒创建时自动发送首条消息。
 function useChatSend(args: UseChatSendArgs) {
   const [sending, setSending] = useState(false);
@@ -211,34 +186,28 @@ function useChatSend(args: UseChatSendArgs) {
   });
   const abortSignal = useAbortSignal();
 
-  async function send(content: string) {
+  // 返回是否送达：成功或主动中止为 true（无需恢复草稿），失败为 false 供调用方恢复输入。
+  async function send(content: string): Promise<boolean> {
     // sendingRef 同步锁：同一瞬间连点两次发送都会读到 sending=false 而发出两条消息，用 ref 立即占位。
-    if (sendingRef.current || !args.shopId) return;
+    if (sendingRef.current || !args.shopId) return true;
     sendingRef.current = true;
     setSending(true);
     args.setError("");
     setStreamText("");
     setActiveTools([]);
     try {
-      // 页面数据快照（惰性同步，垫在消息末尾）：选品候选摘要（沙盒存在时）+ 商品页实时快照（商品详情页打开时），
-      // 均为数据区标记、声明"与前文冲突时以此为准"；快照读取失败静默跳过，不阻断发送。
-      const blocks: string[] = [];
-      const summary = readSelectionSummary(args.shopId);
-      if (summary !== null) {
-        blocks.push(`[selection-summary]\n以下为当前选品候选池的最新摘要，与前文冲突时以此为准：\n${summary}\n[/selection-summary]`);
-      }
-      const productSnapshot = await readProductSnapshot(args.pathname, args.shopId);
-      if (productSnapshot !== null) blocks.push(productSnapshot);
-      const effectiveContent = blocks.length === 0 ? content : `${content}\n\n${blocks.join("\n\n")}`;
+      const effectiveContent = await buildEffectiveContent(content, args.pathname, args.shopId);
       await streamChatRequest(
         `/api/conversations/${args.conversationId}/messages`,
         { shopId: args.shopId, content: effectiveContent },
         handleEvent,
         abortSignal,
       );
+      return true;
     } catch (e) {
-      if (e instanceof Error && e.name === "AbortError") return;
+      if (e instanceof Error && e.name === "AbortError") return true;
       failStream(e instanceof Error ? e.message : "发送失败，请重试");
+      return false;
     } finally {
       sendingRef.current = false;
       setSending(false);
@@ -251,7 +220,7 @@ function useChatSend(args: UseChatSendArgs) {
   return { sending, streamText, activeTools, send };
 }
 
-export default function ChatPanel({ conversationId, onTurnComplete, autoSendMessage }: ChatPanelProps) {
+export default function ChatPanel({ conversationId, onTurnComplete, autoSendMessage, onScriptResult }: ChatPanelProps) {
   const { currentShopId } = useShops();
   const pathname = usePathname();
   const { messages, setMessages, error, setError, retry } = useConversationMessages(conversationId, currentShopId);
@@ -270,12 +239,30 @@ export default function ChatPanel({ conversationId, onTurnComplete, autoSendMess
 
   useAutoScroll(bottomRef, [messages?.length, streamText, activeTools.length]);
 
-  function handleSend() {
+  // 最新脚本结果上抛：从最新到最旧扫描消息与工具调用，取第一条成功的视频脚本 scriptId（历史加载与新回合完成都会触发）。
+  useEffect(() => {
+    if (!onScriptResult) return;
+    let found: string | null = null;
+    for (let i = (messages ?? []).length - 1; i >= 0 && found === null; i -= 1) {
+      for (let j = (messages![i].toolCalls ?? []).length - 1; j >= 0; j -= 1) {
+        const call = messages![i].toolCalls![j];
+        if (call.toolName === SCRIPT_TOOL_NAME && call.status === "done") {
+          found = (call.details as ScriptToolDetails | undefined)?.scriptId ?? null;
+          break;
+        }
+      }
+    }
+    onScriptResult(found);
+  }, [messages, onScriptResult]);
+
+  async function handleSend() {
     if (sending) return;
     const content = input.trim();
     if (content === "" || !currentShopId) return;
     setInput("");
-    void send(content);
+    const delivered = await send(content);
+    // 发送失败且用户没有输入新内容时恢复草稿，长输入不因一次网络失败丢失。
+    if (!delivered) setInput((prev) => (prev === "" ? content : prev));
   }
 
   return (

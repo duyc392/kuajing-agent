@@ -107,22 +107,22 @@ export default function VideoReviewTab({ productId, initialVideoId = null, onGoT
   );
 }
 
-// 左侧已发布视频子列表：选中态蓝框，点击切换复盘。
+// 左侧已发布视频子列表：选中态浅绿，点击切换复盘。
 function VideoList({ videos, selectedId, onSelect }: { videos: PublishedVideoView[]; selectedId: string | null; onSelect: (id: string) => void }) {
   return (
-    <aside className="grid content-start gap-2 rounded-xl border border-gray-200 bg-white p-3">
-      <p className="px-2 text-xs font-semibold text-gray-500">选择已发布视频</p>
+    <aside className="page-card grid content-start gap-2 p-3">
+      <p className="px-2 text-xs font-semibold text-[var(--workspace-muted)]">选择已发布视频</p>
       {videos.length === 0 && (
-        <p className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-sm text-gray-400">暂无已发布视频。</p>
+        <p className="rounded-lg border border-dashed border-[var(--workspace-border)] bg-[#f6f9f6] p-6 text-center text-sm text-[var(--workspace-muted)]">暂无已发布视频。</p>
       )}
       {videos.map((video) => (
         <button
           key={video.id}
           onClick={() => onSelect(video.id)}
-          className={`rounded-lg px-3 py-2 text-left ${selectedId === video.id ? "bg-blue-50 ring-1 ring-blue-300" : "bg-white hover:bg-gray-100"}`}
+          className={`rounded-lg px-3 py-2 text-left transition-colors ${selectedId === video.id ? "bg-[var(--workspace-soft)] ring-1 ring-[#9ecdb9]" : "hover:bg-[#f0f5f1]"}`}
         >
-          <p className="truncate text-sm font-semibold text-gray-900">{video.title}</p>
-          <p className="mt-0.5 text-xs text-gray-500">播放 {(video.playCount / 1000).toFixed(1)}K · 完播 {video.completionRate !== null ? `${video.completionRate}%` : "—"}</p>
+          <p className="truncate text-sm font-semibold">{video.title}</p>
+          <p className="mt-0.5 text-xs text-[var(--workspace-muted)]">播放 {(video.playCount / 1000).toFixed(1)}K · 完播 {video.completionRate !== null ? `${video.completionRate}%` : "—"}</p>
         </button>
       ))}
     </aside>
@@ -132,19 +132,22 @@ function VideoList({ videos, selectedId, onSelect }: { videos: PublishedVideoVie
 // 右侧留存区：标题 + 加载/空态 + 留存曲线。
 function RetentionSection({ selectedId, review, loaded, error, retentionData, onRetry }: { selectedId: string | null; review: VideoReviewView | null; loaded: boolean; error: string; retentionData: number[]; onRetry: () => void }) {
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+    <section className="page-card p-5">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-gray-900">📈 秒级留存折线图与分镜对齐</h2>
+        <h2 className="flex items-center gap-2 text-sm font-semibold">
+          秒级留存折线图与分镜对齐
+          {review?.source === "demo" && <span className="status-pill" data-tone="warn">演示数据</span>}
+        </h2>
         {review?.dropPointSeconds !== null && review?.dropPointSeconds !== undefined && (
-          <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-600">⚠️ {review.dropPointSeconds}s 断崖流失</span>
+          <span className="status-pill" data-tone="warn">{review.dropPointSeconds}s 断崖流失</span>
         )}
       </div>
-      {selectedId === null && <p className="mt-4 text-center text-sm text-gray-400">请选择左侧视频查看复盘。</p>}
+      {selectedId === null && <p className="mt-4 text-center text-sm text-[var(--workspace-muted)]">请选择左侧视频查看复盘。</p>}
       {selectedId !== null && error !== "" && <ErrorMessage message={error} onRetry={onRetry} />}
       {selectedId !== null && error === "" && !loaded && <Loading text="加载复盘…" />}
       {selectedId !== null && review !== null && <RetentionProfile review={review} retentionData={retentionData} />}
       {selectedId !== null && loaded && review === null && error === "" && (
-        <p className="mt-4 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-sm text-gray-400">该视频暂无秒级数据与复盘。</p>
+        <p className="mt-4 rounded-lg border border-dashed border-[var(--workspace-border)] bg-[#f6f9f6] p-6 text-center text-sm text-[var(--workspace-muted)]">该视频暂无秒级数据与复盘。</p>
       )}
     </section>
   );
@@ -153,10 +156,10 @@ function RetentionSection({ selectedId, review, loaded, error, retentionData, on
 // 底部 AI 闭环优化建议卡：红色描边，展示建议列表，生成 V2 跳工作台对话。
 function LoopbackCard({ review, onGoToScripts }: { review: VideoReviewView; onGoToScripts: (review: VideoReviewView) => void }) {
   return (
-    <section className="rounded-xl border-2 border-red-400">
-      <div className="rounded-[calc(0.75rem-2px)] bg-red-50 p-4">
-        <h2 className="text-sm font-semibold text-red-600">🤖 AI 闭环优化建议 (生成 V2 脚本)</h2>
-        <ul className="mt-2 grid gap-1 text-sm text-gray-800">
+    <section className="page-card p-4">
+      <div className="rounded-xl bg-[#fbf3df] p-4">
+        <h2 className="text-sm font-semibold text-[#9a6700]">AI 闭环优化建议（生成 V2 脚本）</h2>
+        <ul className="mt-2 grid gap-1 text-sm text-[#3b534c]">
           {review.suggestions.map((suggestion, index) => (
             <li key={index}>• {suggestion}</li>
           ))}

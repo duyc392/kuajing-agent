@@ -29,7 +29,7 @@ export default function CreateProductForm({ submitting, onSubmit, onCancel }: Cr
 
   return (
     <form
-      className="grid gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+      className="grid gap-3 rounded-xl border border-[var(--workspace-border)] bg-[#f6f9f6] p-4"
       onSubmit={(event) => {
         event.preventDefault();
         onSubmit(values as { name: string; category: string; price: string; description: string; skuRule: string });
@@ -39,10 +39,10 @@ export default function CreateProductForm({ submitting, onSubmit, onCancel }: Cr
       {field("类目", "category", values, setValues, 100)}
       {field("基础价格（数字，可留空）", "price", values, setValues, 20)}
       {field("SKU 编码规则（Agent 建议）", "skuRule", values, setValues, 500)}
-      <label className="grid gap-1 text-xs text-gray-600">
+      <label className="grid gap-1 text-xs text-[var(--workspace-muted)]">
         商品描述
         <textarea
-          className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+          className="field-input"
           rows={3}
           value={values.description ?? ""}
           maxLength={5000}
@@ -53,11 +53,11 @@ export default function CreateProductForm({ submitting, onSubmit, onCancel }: Cr
         <button
           type="submit"
           disabled={submitting || (values.name ?? "").trim() === ""}
-          className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+          className="btn btn-primary btn-sm"
         >
           {submitting ? "创建中…" : "创建商品"}
         </button>
-        <button type="button" onClick={onCancel} className="rounded-lg border border-gray-300 px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-100">
+        <button type="button" onClick={onCancel} className="btn btn-outline btn-sm">
           取消
         </button>
       </div>

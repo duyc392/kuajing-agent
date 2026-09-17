@@ -19,13 +19,15 @@ interface ProductInfoPanelProps {
   editing: boolean;
   onSave: (values: ProductInfoValues) => void;
   onCancelEdit: () => void;
+  /** 挂进商品档案标签页时为 true：不自带卡片壳。 */
+  flat?: boolean;
 }
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className="text-sm whitespace-pre-wrap text-gray-900">{value}</p>
+      <p className="text-xs text-[var(--workspace-muted)]">{label}</p>
+      <p className="text-sm whitespace-pre-wrap">{value}</p>
     </div>
   );
 }
@@ -49,31 +51,31 @@ function EditForm({ product, submitting, onSubmit, onCancel }: { product: Produc
         onSubmit(values);
       }}
     >
-      <label className="grid gap-1 text-xs text-gray-600">
+      <label className="grid gap-1 text-xs text-[var(--workspace-muted)]">
         名称（必填）
-        <input className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm" value={values.name} onChange={set("name")} maxLength={200} />
+        <input className="field-input" value={values.name} onChange={set("name")} maxLength={200} />
       </label>
-      <label className="grid gap-1 text-xs text-gray-600">
+      <label className="grid gap-1 text-xs text-[var(--workspace-muted)]">
         类目
-        <input className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm" value={values.category} onChange={set("category")} maxLength={100} />
+        <input className="field-input" value={values.category} onChange={set("category")} maxLength={100} />
       </label>
-      <label className="grid gap-1 text-xs text-gray-600">
+      <label className="grid gap-1 text-xs text-[var(--workspace-muted)]">
         基础价格
-        <input className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm" value={values.price} onChange={set("price")} placeholder="数字，可留空" />
+        <input className="field-input" value={values.price} onChange={set("price")} placeholder="数字，可留空" />
       </label>
-      <label className="grid gap-1 text-xs text-gray-600">
+      <label className="grid gap-1 text-xs text-[var(--workspace-muted)]">
         商品描述
-        <textarea className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm" rows={4} value={values.description} onChange={set("description")} maxLength={5000} />
+        <textarea className="field-input" rows={4} value={values.description} onChange={set("description")} maxLength={5000} />
       </label>
-      <label className="grid gap-1 text-xs text-gray-600">
+      <label className="grid gap-1 text-xs text-[var(--workspace-muted)]">
         SKU 编码规则（Agent 建议）
-        <input className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm" value={values.skuRule} onChange={set("skuRule")} maxLength={500} />
+        <input className="field-input" value={values.skuRule} onChange={set("skuRule")} maxLength={500} />
       </label>
       <div className="flex gap-2">
-        <button type="submit" disabled={submitting || values.name.trim() === ""} className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50">
+        <button type="submit" disabled={submitting || values.name.trim() === ""} className="btn btn-primary btn-sm">
           {submitting ? "保存中…" : "保存修改"}
         </button>
-        <button type="button" onClick={onCancel} className="rounded-lg border border-gray-300 px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-100">
+        <button type="button" onClick={onCancel} className="btn btn-outline btn-sm">
           取消
         </button>
       </div>
@@ -81,9 +83,9 @@ function EditForm({ product, submitting, onSubmit, onCancel }: { product: Produc
   );
 }
 
-export default function ProductInfoPanel({ product, saving, editing, onSave, onCancelEdit }: ProductInfoPanelProps) {
+export default function ProductInfoPanel({ product, saving, editing, onSave, onCancelEdit, flat }: ProductInfoPanelProps) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5">
+    <div className={flat ? "" : "page-card p-5"}>
       {editing ? (
         <EditForm product={product} submitting={saving} onSubmit={onSave} onCancel={onCancelEdit} />
       ) : (

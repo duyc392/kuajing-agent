@@ -109,22 +109,22 @@ function ImageCard({ image, onApply, onDelete }: { image: ProductImageView; onAp
       <img src={image.path} alt={image.prompt ?? "商品图片"} className="aspect-square w-full bg-gray-100 object-cover" />
       <div className="grid gap-2 p-3">
         <div className="flex items-center gap-1 text-xs">
-          <span className="rounded bg-blue-50 px-1.5 py-0.5 text-blue-600">{TYPE_LABELS[image.type] ?? image.type}</span>
-          {image.applied && <span className="rounded bg-green-50 px-1.5 py-0.5 text-green-700">✓ 已应用</span>}
+          <span className="status-pill !px-1.5 !py-0.5">{TYPE_LABELS[image.type] ?? image.type}</span>
+          {image.applied && <span className="status-pill !px-1.5 !py-0.5" data-tone="ok">✓ 已应用</span>}
         </div>
-        {image.prompt && <p className="truncate text-xs text-gray-400" title={image.prompt}>{image.prompt}</p>}
+        {image.prompt && <p className="truncate text-xs text-[var(--workspace-muted)]" title={image.prompt}>{image.prompt}</p>}
         <div className="flex gap-2">
           {!image.applied && (
-            <button onClick={onApply} className="rounded-lg bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700">应用</button>
+            <button onClick={onApply} className="btn btn-primary !min-h-0 !px-3 !py-1 text-xs">应用</button>
           )}
-          <button onClick={onDelete} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50">删除</button>
+          <button onClick={onDelete} className="btn !min-h-0 !px-3 !py-1 border border-red-200 bg-white text-xs text-red-600 hover:bg-red-50">删除</button>
         </div>
       </div>
     </div>
   );
 }
 
-export default function ProductImages({ productId, shopId }: { productId: string; shopId: string }) {
+export default function ProductImages({ productId, shopId, flat }: { productId: string; shopId: string; flat?: boolean }) {
   const { images, error, refresh } = useProductImages(productId, shopId);
   const { actionError, uploading, upload, apply, remove } = useImageActions(productId, shopId, refresh);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -133,17 +133,17 @@ export default function ProductImages({ productId, shopId }: { productId: string
   if (images === null) return <ErrorMessage message={error} onRetry={refresh} />;
 
   return (
-    <div className="grid gap-3">
-      <div className="rounded-xl border border-gray-200 bg-white p-5">
+    <div className={flat ? "grid gap-3" : "page-card grid gap-3 p-5"}>
+      <div>
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-base font-semibold text-gray-900">🖼️ 商品主图与素材</h2>
-            <p className="mt-1 text-xs text-gray-500">生成的图片以草稿保存，点击「应用」后生效为商品图片。</p>
+            <h2 className="text-base font-semibold">图片素材</h2>
+            <p className="mt-1 text-xs text-[var(--workspace-muted)]">生成的图片以草稿保存，点击「应用」后生效为商品图片。</p>
           </div>
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="btn btn-primary btn-sm"
           >
             {uploading ? "上传中…" : "＋ 上传图片"}
           </button>
@@ -161,7 +161,7 @@ export default function ProductImages({ productId, shopId }: { productId: string
         </div>
         {(error || actionError) && <ErrorMessage message={error || actionError} onRetry={refresh} />}
         {images.length === 0 && (
-          <p className="mt-3 rounded-lg border border-dashed border-gray-300 p-6 text-center text-sm text-gray-400">
+          <p className="mt-3 rounded-lg border border-dashed border-[var(--workspace-border)] p-6 text-center text-sm text-[var(--workspace-muted)]">
             还没有商品图片。可以上传自己的图片，或在对话中让 Agent「为这个商品生成主图」，生成后在这里查看并应用。
           </p>
         )}

@@ -18,12 +18,12 @@ import type { VideoReviewView } from "@/types/content";
 
 type ContentTabKey = "ops" | "library" | "scripts" | "shots" | "review";
 
-const TABS: { key: ContentTabKey; label: string; sub: string }[] = [
-  { key: "ops", label: "① 视频运营", sub: "产品档案" },
-  { key: "library", label: "② 内容库", sub: "爆款搜拆" },
-  { key: "scripts", label: "③ 脚本库", sub: "视频与直播" },
-  { key: "shots", label: "④ 素材需求库", sub: "" },
-  { key: "review", label: "⑤ 数据复盘", sub: "" },
+const TABS: { key: ContentTabKey; label: string }[] = [
+  { key: "ops", label: "视频运营" },
+  { key: "library", label: "内容库" },
+  { key: "scripts", label: "脚本库" },
+  { key: "shots", label: "素材需求" },
+  { key: "review", label: "数据复盘" },
 ];
 
 // 店铺/重载变化时重新拉取商品列表，过期请求作废 + 取消信号。
@@ -101,55 +101,63 @@ export default function ContentWorkspace() {
   }, [selectedId]);
 
   if (!currentShopId) {
-    return <p className="px-4 py-10 text-center text-sm text-gray-400">还没有店铺，请先在右上角创建店铺。</p>;
+    return <p className="p-10 text-center text-sm text-[var(--workspace-muted)]">还没有店铺，请先在右上角创建店铺。</p>;
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <ContentSidebar
-        products={list}
-        error={listError}
-        onRetry={retryList}
-        selectedId={selectedId}
-        onSelect={setSelectedId}
-      />
-      <main className="flex min-w-0 flex-1 flex-col gap-4 px-6 py-6">
-        <SubTabBar active={tab} onChange={setTab} />
-        {selectedId === null && list !== null && list.length === 0 && (
-          <p className="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-400">
-            还没有商品可创作。先在「商品」页建档，再回来生成视频脚本与内容。
-          </p>
-        )}
-        {selectedId !== null && (
-          <>
-            {tab === "ops" && <VideoOpsTab productId={selectedId} onGoToScripts={() => setTab("scripts")} onGoToReview={(videoId) => { setSelectedVideoId(videoId); setTab("review"); }} />}
-            {tab === "library" && (
-              <ContentLibraryTab productId={selectedId} category={list?.find((item) => item.id === selectedId)?.category ?? null} onUseStructure={(reference) => { setSelectedStructure(reference); setTab("scripts"); }} />
-            )}
-            {tab === "scripts" && <ScriptLibraryTab productId={selectedId} structure={selectedStructure} review={pendingReview} />}
-            {tab === "shots" && <ShotRequirementsTab productId={selectedId} />}
-            {tab === "review" && <VideoReviewTab productId={selectedId} initialVideoId={selectedVideoId} onGoToScripts={(review) => { setPendingReview(review); setTab("scripts"); }} />}
-          </>
-        )}
-      </main>
+    <div className="page-shell">
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">内容创作</h1>
+          <p className="page-subtitle">围绕商品持续生产视频与直播内容。</p>
+        </div>
+      </header>
+      <div className="grid items-start gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
+        <ContentSidebar
+          products={list}
+          error={listError}
+          onRetry={retryList}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+        />
+        <main className="grid min-w-0 gap-4">
+          <SubTabBar active={tab} onChange={setTab} />
+          {selectedId === null && list !== null && list.length === 0 && (
+            <p className="page-card border-dashed p-8 text-center text-sm text-[var(--workspace-muted)]">
+              还没有商品可创作。先在「商品」页建档，再回来生成视频脚本与内容。
+            </p>
+          )}
+          {selectedId !== null && (
+            <>
+              {tab === "ops" && <VideoOpsTab productId={selectedId} onGoToScripts={() => setTab("scripts")} onGoToReview={(videoId) => { setSelectedVideoId(videoId); setTab("review"); }} />}
+              {tab === "library" && (
+                <ContentLibraryTab productId={selectedId} category={list?.find((item) => item.id === selectedId)?.category ?? null} onUseStructure={(reference) => { setSelectedStructure(reference); setTab("scripts"); }} />
+              )}
+              {tab === "scripts" && <ScriptLibraryTab productId={selectedId} structure={selectedStructure} review={pendingReview} />}
+              {tab === "shots" && <ShotRequirementsTab productId={selectedId} />}
+              {tab === "review" && <VideoReviewTab productId={selectedId} initialVideoId={selectedVideoId} onGoToScripts={(review) => { setPendingReview(review); setTab("scripts"); }} />}
+            </>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
 
-// 二级子导航条：五个子页切换。
+// 二级子导航条：五个子页切换（浅绿胶囊激活态，与顶栏激活线区分为两级不同的指示方式）。
 function SubTabBar({ active, onChange }: { active: ContentTabKey; onChange: (tab: ContentTabKey) => void }) {
   return (
-    <div className="flex flex-wrap items-center gap-1 rounded-xl border border-gray-200 bg-white p-1.5 shadow-sm">
+    <nav className="subnav" aria-label="内容创作子页">
       {TABS.map((item) => (
         <button
           key={item.key}
           onClick={() => onChange(item.key)}
-          className={`rounded-lg px-3 py-1.5 text-sm font-medium ${active === item.key ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-100"}`}
+          aria-current={active === item.key ? "page" : undefined}
+          className="subnav-link"
         >
           {item.label}
-          {item.sub && <span className={`ml-1 text-xs font-normal ${active === item.key ? "text-blue-100" : "text-gray-400"}`}>({item.sub})</span>}
         </button>
       ))}
-    </div>
+    </nav>
   );
 }

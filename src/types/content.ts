@@ -30,6 +30,8 @@ export interface PublishedVideoView {
   id: string;
   shopId: string;
   productId: string;
+  /** 数据来源标记：demo = 演示数据（内容运营数据源当前为 Mock），real = 真实采集；页面据此显示"演示数据"标注。 */
+  source: "demo" | "real";
   scriptId: string | null;
   platformVideoId: string | null;
   title: string;
@@ -50,6 +52,8 @@ export interface VideoReviewView {
   id: string;
   shopId: string;
   publishedVideoId: string;
+  /** 数据来源标记：demo = 演示数据（内容运营数据源当前为 Mock），real = 真实采集；页面据此显示"演示数据"标注。 */
+  source: "demo" | "real";
   dropPointSeconds: number | null;
   dropRate: number | null;
   summary: string;

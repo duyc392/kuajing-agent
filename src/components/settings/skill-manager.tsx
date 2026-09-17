@@ -101,7 +101,7 @@ function SkillActions({ skill, saving, onToggle, onToggleResident, onDelete }: {
         onClick={onToggle}
         disabled={saving}
         className={`rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
-          skill.enabled ? "border border-gray-300 text-gray-600 hover:bg-gray-100" : "bg-blue-600 text-white hover:bg-blue-700"
+          skill.enabled ? "border border-[var(--workspace-border)] text-[var(--workspace-muted)] hover:bg-[#f0f5f1]" : "bg-[var(--workspace-primary)] text-white hover:bg-[#315647]"
         }`}
       >
         {skill.enabled ? "禁用" : "启用"}
@@ -135,14 +135,14 @@ function SkillItem({ skill, saving, onToggle, onToggleResident, onDelete }: {
 }) {
   const created = formatTime(skill.createdAt);
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4">
-      <p className="flex items-center gap-2 text-sm font-medium text-gray-900">
+    <div className="page-card p-4">
+      <p className="flex items-center gap-2 text-sm font-medium">
         {skill.name}
-        <span className={`rounded-full px-2 py-0.5 text-xs ${skill.enabled ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+        <span className={`status-pill ${skill.enabled ? "" : ""}`}>
           {skill.enabled ? "已启用" : "已禁用"}
         </span>
         {skill.enabled && (
-          <span className={`rounded-full px-2 py-0.5 text-xs ${skill.alwaysApply ? "bg-blue-50 text-blue-600" : "bg-amber-50 text-amber-600"}`}>
+          <span className={`rounded-full px-2 py-0.5 text-xs ${skill.alwaysApply ? "bg-[var(--workspace-soft)] text-[#2e6350]" : "bg-[#fbf3df] text-[#9a6700]"}`}>
             {skill.alwaysApply ? "常驻" : "按需"}
           </span>
         )}
@@ -172,20 +172,14 @@ export default function SkillManager() {
   const enabledCount = skills.filter((skill) => skill.enabled).length;
 
   return (
-    <div className="mx-auto grid max-w-3xl gap-4 px-4 py-8">
-      <header>
-        <h1 className="text-2xl font-bold text-gray-900">技能管理</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Agent 从对话中发现的重复操作模式，经你在对话卡片上确认后沉淀为技能；已启用的技能会在后续生成文案、脚本和建议时自动应用。
-        </p>
-        <p className="mt-1 text-xs text-gray-400">
-          已启用 {enabledCount} / {MAX_ENABLED_SKILLS}（达到上限后需先禁用或删除才能再启用）。常驻技能每轮对话生效，并进入文案、脚本等成品生成，适合简短的偏好要求；
-          按需技能只占一行目录，Agent 在对话中相关时加载查阅，不进入成品生成，适合较长的操作手册。
-        </p>
-      </header>
+    <div className="grid gap-4">
+      <p className="text-xs text-[var(--workspace-muted)]">
+        已启用 {enabledCount} / {MAX_ENABLED_SKILLS}（达到上限后需先禁用或删除才能再启用）。常驻技能每轮对话生效，并进入文案、脚本等成品生成，适合简短的偏好要求；
+        按需技能只占一行目录，Agent 在对话中相关时加载查阅，不进入成品生成，适合较长的操作手册。
+      </p>
       {(error || actionError) && <ErrorMessage message={error || actionError} onRetry={refresh} />}
       {skills.length === 0 && (
-        <p className="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-400">
+        <p className="page-card border-dashed p-8 text-center text-sm text-[var(--workspace-muted)]">
           暂无技能。在对话中反复提出同一类要求，Agent 会提议把它沉淀为技能，你确认后即可在这里管理。
         </p>
       )}

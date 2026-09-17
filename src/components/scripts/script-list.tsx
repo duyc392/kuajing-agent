@@ -14,7 +14,7 @@ function ScriptCard({ script }: { script: ScriptSummary }) {
   return (
     <Link
       href={`/scripts/${script.id}`}
-      className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:border-blue-300"
+      className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:border-[#62917d]"
     >
       <div className="min-w-0">
         <p className="truncate text-sm font-medium text-gray-900">{script.hook}</p>

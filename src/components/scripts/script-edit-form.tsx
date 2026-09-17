@@ -61,7 +61,7 @@ export default function ScriptEditForm({ type, hook, cta, style, submitting, onS
         <input className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm" value={values.style} onChange={set("style")} maxLength={200} placeholder="可留空" />
       </label>
       <div className="flex gap-2">
-        <button type="submit" disabled={submitting} className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50">
+        <button type="submit" disabled={submitting} className="rounded-lg bg-[var(--workspace-primary)] px-4 py-1.5 text-sm text-white hover:bg-[#315647] disabled:opacity-50">
           {submitting ? "保存中…" : "保存修改"}
         </button>
         <button type="button" onClick={onCancel} className="rounded-lg border border-gray-300 px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-100">

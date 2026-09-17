@@ -181,7 +181,7 @@ function DrawerPanel({ open, onClose, panelRef, closeRef, children }: DrawerPane
         <span id={TITLE_ID} className="text-sm font-semibold text-gray-900">Agent 助手</span>
         <button ref={closeRef} type="button" onClick={onClose} aria-label="关闭面板" className="rounded-lg px-2 py-1 text-gray-400 hover:bg-gray-50 hover:text-gray-600">✕</button>
       </header>
-      <div className="min-h-0 flex-1 bg-gray-50">{children}</div>
+      <div className="min-h-0 flex-1 bg-[var(--workspace-bg)]">{children}</div>
     </div>
   );
 }
@@ -243,7 +243,7 @@ export default function AgentDrawer() {
         aria-haspopup="dialog"
         aria-controls="agent-drawer-panel"
         tabIndex={open ? -1 : 0}
-        className="fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white shadow-lg hover:bg-blue-700"
+        className="fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--workspace-primary)] text-sm font-bold text-white shadow-lg hover:bg-[#315647]"
       >
         AI
       </button>

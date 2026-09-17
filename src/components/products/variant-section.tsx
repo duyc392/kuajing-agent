@@ -135,16 +135,16 @@ interface VariantListProps {
 
 function VariantList({ variants, basePrice, editingId, busy, onEdit, onCancelEdit, onDelete, onSubmitEdit }: VariantListProps) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-200">
+    <div className="overflow-x-auto rounded-xl border border-[var(--workspace-border)]">
       <table className="w-full border-collapse bg-white text-left">
         <thead>
-          <tr className="border-b border-gray-100 bg-gray-50/70">
-            <th className="px-3 py-2 text-xs font-medium text-gray-500">SKU 编码</th>
-            <th className="px-3 py-2 text-xs font-medium text-gray-500">颜色 / 风格</th>
-            <th className="px-3 py-2 text-xs font-medium text-gray-500">变体价格</th>
-            <th className="px-3 py-2 text-xs font-medium text-gray-500">库存数量</th>
-            <th className="px-3 py-2 text-xs font-medium text-gray-500">状态</th>
-            <th className="px-3 py-2 text-xs font-medium text-gray-500">操作</th>
+          <tr className="border-b border-[var(--workspace-border)] bg-[#f0f4f1]">
+            <th className="px-3 py-2 text-xs font-medium text-[var(--workspace-muted)]">SKU 编码</th>
+            <th className="px-3 py-2 text-xs font-medium text-[var(--workspace-muted)]">颜色 / 风格</th>
+            <th className="px-3 py-2 text-xs font-medium text-[var(--workspace-muted)]">变体价格</th>
+            <th className="px-3 py-2 text-xs font-medium text-[var(--workspace-muted)]">库存数量</th>
+            <th className="px-3 py-2 text-xs font-medium text-[var(--workspace-muted)]">状态</th>
+            <th className="px-3 py-2 text-xs font-medium text-[var(--workspace-muted)]">操作</th>
           </tr>
         </thead>
         <tbody>
@@ -222,9 +222,9 @@ export default function VariantSection({ productId, shopId, basePrice, onVariant
   return (
     <div className="grid gap-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-gray-900">🎁 商品 SKU 变体信息</h2>
+        <h2 className="text-base font-semibold">SKU 变体</h2>
         {!showCreate && (
-          <button onClick={() => setShowCreate(true)} className="rounded-lg border border-blue-300 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50">
+          <button onClick={() => setShowCreate(true)} className="btn btn-outline btn-sm">
             ＋ 添加变体
           </button>
         )}

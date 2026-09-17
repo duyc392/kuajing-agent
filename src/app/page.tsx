@@ -29,7 +29,7 @@ export default function HomePage() {
       {error ? (
         <div className="text-center">
           <p className="text-sm text-red-600">{error}</p>
-          <Link href="/onboarding" className="mt-3 inline-block rounded-lg bg-blue-600 px-5 py-2 text-sm text-white hover:bg-blue-700">
+          <Link href="/onboarding" className="mt-3 inline-block rounded-lg bg-[var(--workspace-primary)] px-5 py-2 text-sm text-white hover:bg-[#315647]">
             手动打开配置页
           </Link>
         </div>

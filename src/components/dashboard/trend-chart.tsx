@@ -14,8 +14,8 @@ export default function TrendChart({ title, points, format, color }: {
 }) {
   if (points.length === 0) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white p-5">
-        <p className="text-sm font-medium text-gray-900">{title}</p>
+      <div className="page-card p-5">
+        <p className="text-sm font-medium">{title}</p>
         <p className="mt-2 text-xs text-gray-400">（暂无趋势数据）</p>
       </div>
     );
@@ -34,8 +34,8 @@ export default function TrendChart({ title, points, format, color }: {
   const labelIndices = [...new Set([0, Math.floor((points.length - 1) / 2), points.length - 1])];
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5">
-      <p className="text-sm font-medium text-gray-900">{title}</p>
+    <div className="page-card p-5">
+      <p className="text-sm font-medium">{title}</p>
       <svg viewBox={`0 0 ${width} ${height}`} className="mt-2 h-auto w-full">
         {ticks.map((tick, index) => (
           <g key={index}>

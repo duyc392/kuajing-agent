@@ -15,7 +15,7 @@ interface ShopFieldsProps {
 }
 
 const INPUT_CLASS =
-  "w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500";
+  "field-input";
 
 export function ShopFields({ value, onChange }: ShopFieldsProps) {
   const markets = getMarkets();

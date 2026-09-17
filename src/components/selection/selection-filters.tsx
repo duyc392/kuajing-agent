@@ -16,8 +16,8 @@ const EXAMPLE_PROMPT = "重点找适合女性睡前浴室使用、有极强视�
 function LabeledSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (next: string) => void; options: Array<{ value: string; label: string }> }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-medium text-gray-600">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500">
+      <span className="field-label">{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="field-input text-xs">
         {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
     </label>
@@ -27,11 +27,11 @@ function LabeledSelect({ label, value, onChange, options }: { label: string; val
 function PriceRangeField({ min, max, onMin, onMax }: { min: string; max: string; onMin: (value: string) => void; onMax: (value: string) => void }) {
   return (
     <div>
-      <span className="mb-1.5 block text-xs font-medium text-gray-600">售价区间 (USD)</span>
+      <span className="field-label">售价区间 (USD)</span>
       <div className="flex items-center gap-2">
-        <input type="number" value={min} onChange={(event) => onMin(event.target.value)} className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-center" placeholder="Min" />
-        <span className="text-xs text-gray-400">至</span>
-        <input type="number" value={max} onChange={(event) => onMax(event.target.value)} className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-center" placeholder="Max" />
+        <input type="number" value={min} onChange={(event) => onMin(event.target.value)} className="field-input w-full text-center text-xs" placeholder="Min" />
+        <span className="text-xs text-[var(--workspace-muted)]">至</span>
+        <input type="number" value={max} onChange={(event) => onMax(event.target.value)} className="field-input w-full text-center text-xs" placeholder="Max" />
       </div>
     </div>
   );
@@ -40,11 +40,11 @@ function PriceRangeField({ min, max, onMin, onMax }: { min: string; max: string;
 function BasicFilters({ margin, weight, prohibited, onMargin, onWeight, onProhibited }: { margin: boolean; weight: boolean; prohibited: boolean; onMargin: (v: boolean) => void; onWeight: (v: boolean) => void; onProhibited: (v: boolean) => void }) {
   return (
     <div>
-      <span className="mb-1.5 block text-xs font-medium text-gray-600">基础过滤</span>
-      <div className="flex items-center gap-3 pt-2 text-xs text-gray-600">
-        <label className="flex cursor-pointer items-center gap-1"><input type="checkbox" checked={margin} onChange={(event) => onMargin(event.target.checked)} className="rounded text-blue-600" /><span>毛利率≥45%</span></label>
-        <label className="flex cursor-pointer items-center gap-1"><input type="checkbox" checked={weight} onChange={(event) => onWeight(event.target.checked)} className="rounded text-blue-600" /><span>≤500g</span></label>
-        <label className="flex cursor-pointer items-center gap-1"><input type="checkbox" checked={prohibited} onChange={(event) => onProhibited(event.target.checked)} className="rounded text-blue-600" /><span>禁电禁液</span></label>
+      <span className="field-label">基础过滤</span>
+      <div className="flex items-center gap-3 pt-2 text-xs text-[#3b534c]">
+        <label className="flex cursor-pointer items-center gap-1"><input type="checkbox" checked={margin} onChange={(event) => onMargin(event.target.checked)} className="accent-[#2e6350]" /><span>毛利率≥45%</span></label>
+        <label className="flex cursor-pointer items-center gap-1"><input type="checkbox" checked={weight} onChange={(event) => onWeight(event.target.checked)} className="accent-[#2e6350]" /><span>≤500g</span></label>
+        <label className="flex cursor-pointer items-center gap-1"><input type="checkbox" checked={prohibited} onChange={(event) => onProhibited(event.target.checked)} className="accent-[#2e6350]" /><span>禁电禁液</span></label>
       </div>
     </div>
   );
@@ -87,9 +87,9 @@ export default function SelectionFilters({ disabled, onRun }: SelectionFiltersPr
   }
 
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <h2 className="mb-4 flex items-center gap-2 border-b border-gray-100 pb-3 text-sm font-bold text-gray-900">
-        <span>⛭</span> 选品策略与筛选条件
+    <section className="page-card p-5">
+      <h2 className="mb-4 flex items-center gap-2 border-b border-[var(--workspace-border)] pb-3 text-sm font-bold">
+        选品策略与筛选条件
       </h2>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <LabeledSelect label="目标国家 / 站点" value={region} onChange={(value) => setRegion(value as SelectionRegion)} options={REGIONS} />
@@ -105,29 +105,29 @@ export default function SelectionFilters({ disabled, onRun }: SelectionFiltersPr
         />
       </div>
       <div className="mt-4">
-        <label className="mb-1.5 block text-xs font-medium text-gray-600">选品需求描述</label>
+        <label className="field-label">选品需求描述</label>
         <div className="relative">
           <textarea
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
             rows={2}
             placeholder="输入场景、痛点或视觉特征，如：重点找适合女性睡前浴室使用、有极强视觉解压感、近期在TikTok增速快的小工具。"
-            className="w-full rounded-lg border border-gray-200 bg-gray-50 p-2.5 text-xs text-gray-700 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            className="field-input p-2.5 text-xs"
           />
-          <button type="button" onClick={() => setPrompt(EXAMPLE_PROMPT)} className="absolute right-2.5 bottom-2.5 rounded bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-600 hover:bg-blue-100">
+          <button type="button" onClick={() => setPrompt(EXAMPLE_PROMPT)} className="absolute right-2.5 bottom-2.5 rounded bg-[var(--workspace-soft)] px-2 py-0.5 text-[11px] font-medium text-[#2e6350] hover:bg-[#dcefe5]">
             填入示例
           </button>
         </div>
-        <p className="mt-1 text-[11px] text-gray-400">提示：当前版本自然语言仅为留痕记录，暂不参与筛选（确定性规则过滤）。</p>
+        <p className="mt-1 text-[11px] text-[var(--workspace-muted)]">提示：当前版本自然语言仅为留痕记录，暂不参与筛选（确定性规则过滤）。</p>
       </div>
-      <div className="mt-4 flex items-center justify-end border-t border-gray-100 pt-3">
+      <div className="mt-4 flex items-center justify-end border-t border-[var(--workspace-border)] pt-3">
         <button
           type="button"
           onClick={submit}
           disabled={disabled}
-          className="flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-500/20 transition-all hover:scale-[1.01] hover:bg-blue-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+          className="btn btn-primary"
         >
-          <span>🚀</span> 启动选品流水线
+          启动选品
         </button>
       </div>
     </section>

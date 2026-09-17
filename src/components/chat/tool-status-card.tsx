@@ -5,7 +5,7 @@
 export type ToolStatus = "running" | "error" | "invalid";
 
 export function cardStyle(tone: "blue" | "green" | "red"): string {
-  if (tone === "blue") return "rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700";
+  if (tone === "blue") return "rounded-lg border border-[#b8ddd0] bg-[var(--workspace-soft)] px-3 py-2 text-xs text-[#2e6350]";
   if (tone === "red") return "rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600";
   return "rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700";
 }

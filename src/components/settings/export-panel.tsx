@@ -48,7 +48,7 @@ export default function ExportPanel() {
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-6">
+    <div className="page-card p-6">
       <p className="text-sm text-gray-600">
         把当前店铺的数据库记录（商品、文案、脚本、对话、记忆、生成记录等）导出为一个 Excel 文件，用于备份。
       </p>
@@ -56,7 +56,7 @@ export default function ExportPanel() {
         type="button"
         onClick={() => void handleExport()}
         disabled={exporting}
-        className="mt-4 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        className="btn btn-primary mt-4"
       >
         {exporting ? "导出中…" : "导出 Excel 备份"}
       </button>

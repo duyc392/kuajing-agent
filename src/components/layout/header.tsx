@@ -2,9 +2,10 @@
 // 测品数量 = 当前店铺 Product.testingStatus === "testing" 的商品数，选品沙盒推进成功后经事件即时刷新。
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import WorkspaceIcon from "@/components/shared/workspace-icon";
 import ShopSwitcher from "@/components/layout/shop-switcher";
 import { useShops } from "@/components/shop/shop-context";
 import { apiRequest } from "@/lib/api-client";
@@ -20,30 +21,30 @@ const NAV_ITEMS = [
   { href: "/settings", label: "设置" },
 ];
 
+// 顶栏测品徽标：effect 绑定店铺与重载计数，切店/重跑先作废旧请求（取消信号），迟到响应不会跨店覆盖；
+// 拉取失败保持 null（隐藏徽标），不显示看似有效的旧数字。
 function useTestingCount(shopId: string | null) {
-  const [count, setCount] = useState(0);
-
-  const refresh = useCallback(() => {
-    if (shopId === null) return;
-    let stale = false;
-    apiRequest<ProductSummary[]>("GET", `/api/products?shopId=${encodeURIComponent(shopId)}`)
-      .then((products) => {
-        if (!stale) setCount(products.filter((product) => product.testingStatus === "testing").length);
-      })
-      .catch(() => undefined);
-    return () => {
-      stale = true;
-    };
-  }, [shopId]);
+  const [count, setCount] = useState<number | null>(null);
+  const [reloadCount, setReloadCount] = useState(0);
 
   useEffect(() => {
-    const stop = refresh();
-    window.addEventListener(SELECTION_POOL_CHANGED_EVENT, refresh);
-    return () => {
-      stop?.();
-      window.removeEventListener(SELECTION_POOL_CHANGED_EVENT, refresh);
-    };
-  }, [refresh]);
+    if (shopId === null) {
+      setCount(null);
+      return;
+    }
+    const controller = new AbortController();
+    setCount(null);
+    apiRequest<ProductSummary[]>("GET", `/api/products?shopId=${encodeURIComponent(shopId)}`, undefined, controller.signal)
+      .then((products) => setCount(products.filter((product) => product.testingStatus === "testing").length))
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [shopId, reloadCount]);
+
+  useEffect(() => {
+    const onPoolChanged = () => setReloadCount((value) => value + 1);
+    window.addEventListener(SELECTION_POOL_CHANGED_EVENT, onPoolChanged);
+    return () => window.removeEventListener(SELECTION_POOL_CHANGED_EVENT, onPoolChanged);
+  }, []);
 
   return count;
 }
@@ -54,25 +55,27 @@ export default function Header() {
   const testingCount = useTestingCount(currentShopId);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-gray-200 bg-white px-4 py-2.5">
-      <div className="mx-auto flex max-w-[1720px] items-center justify-between gap-4">
-        <nav className="flex items-center gap-1">
+    <header className="workspace-header">
+      <div className="workspace-header-inner">
+        <Link href="/workspace" className="workspace-brand" aria-label="跨境 Agent 工作台">
+          <WorkspaceIcon name="logo" width="36" height="32" /><span>跨境 Agent</span>
+        </Link>
+        <nav className="workspace-navigation" aria-label="主导航">
           {NAV_ITEMS.map((item) => {
             const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`rounded-lg px-3 py-1.5 text-sm ${
-                  active ? "bg-blue-50 font-medium text-blue-700" : "text-gray-600 hover:bg-gray-50"
-                }`}
+                aria-current={active ? "page" : undefined}
+                className="workspace-nav-link"
               >
                 {item.label}
                 {item.href === "/content" && (
-                  <span className="ml-1 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">NEW</span>
+                  <span className="workspace-nav-badge">NEW</span>
                 )}
-                {item.href === "/selection" && testingCount > 0 && (
-                  <span className="ml-1 rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
+                {item.href === "/selection" && testingCount !== null && testingCount > 0 && (
+                  <span className="workspace-nav-badge">
                     {testingCount} 款测品中
                   </span>
                 )}
@@ -80,7 +83,7 @@ export default function Header() {
             );
           })}
         </nav>
-        <ShopSwitcher />
+        <ShopSwitcher className="header-shop-switcher" />
       </div>
     </header>
   );

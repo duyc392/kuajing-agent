@@ -139,24 +139,24 @@ export default function ContentLibraryTab({ productId, category, onUseStructure 
 // 上半部：爆款与热点雷达搜集区（搜词公式 + 抓取按钮）。
 function SearchRadar({ keywords, loading, error, onCollect }: { keywords: string[]; loading: boolean; error: string; onCollect: () => void }) {
   return (
-    <section className="rounded-xl border border-gray-200 bg-gray-50/50 p-5">
-      <h2 className="text-sm font-semibold text-gray-900">🔍 爆款与热点雷达搜集区</h2>
+    <section className="page-card bg-[#f6f9f6] p-5">
+      <h2 className="text-sm font-semibold">爆款与热点雷达搜集区</h2>
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className="text-xs font-semibold text-gray-500">搜词公式:</span>
+        <span className="text-xs font-semibold text-[var(--workspace-muted)]">搜词公式:</span>
         {keywords.map((keyword, index) => (
-          <span key={index} className="rounded-full bg-blue-50 px-2.5 py-1 text-xs text-blue-700">
+          <span key={index} className="status-pill !px-2.5 !py-1" data-tone="ok">
             [{keyword}]
           </span>
         ))}
         <button
           onClick={onCollect}
           disabled={loading}
-          className="ml-auto rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="btn btn-primary btn-sm ml-auto"
         >
-          {loading ? "抓取中…" : "🚀 抓取最新视频"}
+          {loading ? "抓取中…" : "抓取最新视频"}
         </button>
       </div>
-      {error === "" && <p className="mt-2 text-xs text-gray-400">对外数据源（爬虫/API）接入前，此处为演示数据；接入后按公式实时采集。</p>}
+      {error === "" && <p className="mt-2 text-xs text-[var(--workspace-muted)]">对外数据源（爬虫/API）接入前，此处为演示数据；接入后按公式实时采集。</p>}
     </section>
   );
 }
@@ -164,8 +164,8 @@ function SearchRadar({ keywords, loading, error, onCollect }: { keywords: string
 // 下半部：已沉淀与逆向拆解的内容库卡片区。
 function ReferenceLibrary({ references, onUseStructure }: { references: ContentReferenceView[]; onUseStructure: (reference: ContentReferenceView) => void }) {
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <h2 className="text-sm font-semibold text-gray-900">🗂️ 已经沉淀与逆向拆解的内容库 ({references.length} 个爆款零件)</h2>
+    <section className="page-card p-5">
+      <h2 className="text-sm font-semibold">沉淀与逆向拆解的内容库（{references.length} 个爆款零件）</h2>
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         {references.map((ref) => (
           <ReferenceCard key={ref.id} reference={ref} onUseStructure={onUseStructure} />
@@ -177,18 +177,18 @@ function ReferenceLibrary({ references, onUseStructure }: { references: ContentR
 
 function ReferenceCard({ reference, onUseStructure }: { reference: ContentReferenceView; onUseStructure: (reference: ContentReferenceView) => void }) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-4">
+    <div className="rounded-lg border border-[var(--workspace-border)] bg-[#f6f9f6] p-4">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-gray-900">爆款 · {reference.angle} · 播放 {reference.playCount.toLocaleString()}</p>
-        {reference.conversionRate !== null && <span className="shrink-0 rounded-full bg-green-50 px-2 py-0.5 text-xs text-green-700">转化率 {reference.conversionRate}%</span>}
+        <p className="text-sm font-semibold">爆款 · {reference.angle} · 播放 {reference.playCount.toLocaleString()}</p>
+        {reference.conversionRate !== null && <span className="status-pill shrink-0" data-tone="ok">转化率 {reference.conversionRate}%</span>}
       </div>
-      <ul className="mt-2 grid gap-1 text-xs text-gray-600">
+      <ul className="mt-2 grid gap-1 text-xs text-[#3b534c]">
         <li>• <strong>Hook</strong>：{reference.hook}</li>
         <li>• <strong>高频疑问</strong>：{reference.highFrequencyQuestion ?? "（无）"}</li>
         <li>• <strong>CTA 引导</strong>：{reference.cta}</li>
       </ul>
-      <button onClick={() => onUseStructure(reference)} className="mt-3 w-full rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
-        ⚡ 套用此结构写脚本
+      <button onClick={() => onUseStructure(reference)} className="btn btn-outline btn-sm mt-3 w-full">
+        套用此结构写脚本
       </button>
     </div>
   );

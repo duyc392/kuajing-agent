@@ -74,7 +74,7 @@ export default function LiveScriptDetail({ scriptId }: { scriptId: string }) {
   return (
     <div className="mx-auto grid max-w-3xl gap-4 px-4 py-8">
       <div className="flex items-center justify-between">
-        <Link href="/scripts" className="text-sm text-blue-600 hover:underline">← 返回脚本列表</Link>
+        <Link href="/scripts" className="text-sm text-[#246750] hover:underline">← 返回脚本列表</Link>
         {!editing && (
           <button onClick={() => setEditing(true)} className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
             编辑

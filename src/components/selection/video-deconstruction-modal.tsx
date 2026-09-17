@@ -16,8 +16,8 @@ interface VideoDeconstructionModalProps {
 
 const PHASE_LABELS: Record<VideoInsightResult["sections"][number]["phase"], { label: string; cls: string }> = {
   hook: { label: "Hook", cls: "text-rose-600" },
-  intro: { label: "进品", cls: "text-blue-600" },
-  demo: { label: "演示", cls: "text-blue-600" },
+  intro: { label: "进品", cls: "text-[#2e6350]" },
+  demo: { label: "演示", cls: "text-[#2e6350]" },
   cta: { label: "挂车", cls: "text-emerald-600" },
 };
 
@@ -68,8 +68,8 @@ function InsightTranscript({ insight }: { insight: VideoInsightResult }) {
 
 function InsightFacts({ facts }: { facts: string[] }) {
   return (
-    <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-3.5 text-xs text-gray-700">
-      <p className="mb-2 font-bold text-blue-950">核心事实提炼</p>
+    <div className="rounded-xl border border-[#b8ddd0] bg-[var(--workspace-soft)]/60 p-3.5 text-xs text-gray-700">
+      <p className="mb-2 font-bold text-[#193630]">核心事实提炼</p>
       <div className="grid grid-cols-2 gap-2 text-[11px]">
         {facts.map((fact) => <div key={fact}>{fact}</div>)}
       </div>
@@ -127,7 +127,7 @@ export default function VideoDeconstructionModal({ candidate, shopId, onClose, o
       <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
         <div className="flex items-center justify-between border-b border-gray-100 pb-3">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-sm font-bold text-blue-600">🎬</span>
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--workspace-soft)] text-sm font-bold text-[#2e6350]">🎬</span>
             <div>
               <h3 className="text-sm font-bold text-gray-900">视频深度透视 · {candidate.name}</h3>
               <p className="text-[11px] text-gray-400">模拟播放 2.4M · 点赞 180K · 带货出单 3,420 单（假数据）</p>
@@ -151,7 +151,7 @@ export default function VideoDeconstructionModal({ candidate, shopId, onClose, o
                   type="button"
                   disabled={generating}
                   onClick={() => void applyScript()}
-                  className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex items-center gap-1.5 rounded-lg bg-[var(--workspace-primary)] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#315647] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   📝 {generating ? "生成中…" : "套用此分镜写脚本"}
                 </button>

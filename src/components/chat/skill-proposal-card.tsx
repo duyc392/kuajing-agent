@@ -89,7 +89,7 @@ export default function SkillProposalCard({ call, messageId }: { call: ToolCallR
 
   const canAct = Boolean(messageId && currentShopId);
   return (
-    <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+    <div className="rounded-xl border border-[#b8ddd0] bg-[var(--workspace-soft)] p-4">
       <p className="text-sm font-medium text-gray-900">💡 建议沉淀为技能：{proposal.name}</p>
       {proposal.description !== "" && <p className="mt-1 text-xs text-gray-600">{proposal.description}</p>}
       <p className="mt-1 whitespace-pre-wrap text-xs text-gray-500">{proposal.prompt}</p>
@@ -109,7 +109,7 @@ export default function SkillProposalCard({ call, messageId }: { call: ToolCallR
         <button
           onClick={() => void confirm()}
           disabled={busy || !canAct}
-          className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded-lg bg-[var(--workspace-primary)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#315647] disabled:opacity-50"
         >
           {busy ? "处理中…" : "确认创建"}
         </button>

@@ -17,7 +17,7 @@ function ShopOption({ shop, active, onPick }: ShopOptionProps) {
     <button
       type="button"
       onClick={() => onPick(shop.id)}
-      className={`block w-full px-3 py-2 text-left text-sm hover:bg-gray-50 ${active ? "bg-blue-50" : ""}`}
+      className={`block w-full px-3 py-2 text-left text-sm hover:bg-gray-50 ${active ? "bg-[var(--workspace-soft)]" : ""}`}
     >
       <span className="block font-medium text-gray-900">{active ? "✓ " : ""}{shop.name}</span>
       <span className="block text-xs text-gray-500">{shop.market} · {shop.productCount} 个商品</span>
@@ -25,7 +25,7 @@ function ShopOption({ shop, active, onPick }: ShopOptionProps) {
   );
 }
 
-export default function ShopSwitcher() {
+export default function ShopSwitcher({ className = "" }: { className?: string }) {
   const { shops, currentShopId, setCurrentShopId, loading, error } = useShops();
   const [open, setOpen] = useState(false);
   const current = shops.find((shop) => shop.id === currentShopId) ?? null;
@@ -36,13 +36,14 @@ export default function ShopSwitcher() {
   }
 
   return (
-    <div className="relative">
+    <div className={`relative ${className}`}>
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm hover:bg-gray-50"
+        aria-expanded={open}
+        className="shop-switcher-trigger flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm hover:bg-gray-50"
       >
-        <span className="font-medium text-gray-900">
+        <span className="shop-switcher-name font-medium text-gray-900">
           {error ? "加载失败" : current ? current.name : loading ? "加载中…" : "尚无店铺"}
         </span>
         {current && <span className="text-xs text-gray-500">{current.market}</span>}
@@ -59,7 +60,7 @@ export default function ShopSwitcher() {
               {shops.length === 0 && <p className="px-3 py-2 text-sm text-gray-400">还没有店铺</p>}
             </div>
             <div className="border-t border-gray-100">
-              <Link href="/create-shop" className="block px-3 py-2 text-sm text-blue-600 hover:bg-gray-50">＋ 新建店铺</Link>
+              <Link href="/create-shop" className="block px-3 py-2 text-sm text-[#246750] hover:bg-gray-50">＋ 新建店铺</Link>
               <Link href="/settings/shops" className="block px-3 py-2 text-sm text-gray-600 hover:bg-gray-50">管理店铺（编辑 / 归档）</Link>
             </div>
           </div>

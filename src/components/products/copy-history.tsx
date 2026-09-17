@@ -10,6 +10,8 @@ interface CopyHistoryProps {
   productId: string;
   shopId: string;
   copies: CopyView[];
+  /** 挂进商品档案标签页时为 true：不自带卡片壳。 */
+  flat?: boolean;
 }
 
 interface CopyRowProps {
@@ -28,21 +30,21 @@ function metaText(copy: CopyView): string {
 
 function CopyRow({ copy, isCurrent, switching, compareLabel, canCompare, onApply, onToggleCompare }: CopyRowProps) {
   return (
-    <li className="rounded-lg border border-gray-100 p-3">
+    <li className="rounded-lg bg-[#f6f9f6] p-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="min-w-0 truncate text-sm font-medium text-gray-900">{copy.title}</p>
+        <p className="min-w-0 truncate text-sm font-medium">{copy.title}</p>
         <div className="flex shrink-0 items-center gap-2">
-          <span className={`rounded-full px-2 py-0.5 text-xs ${isCurrent ? "bg-blue-50 text-blue-600" : "bg-gray-100 text-gray-500"}`}>
-            {isCurrent ? "当前线上" : "草稿"}
+          <span className={`status-pill !px-2 !py-0.5 ${isCurrent ? "" : ""}`} data-tone={isCurrent ? "ok" : undefined}>
+            {isCurrent ? "当前生效" : "草稿"}
           </span>
           {compareLabel && (
-            <span className="rounded-full bg-purple-50 px-2 py-0.5 text-xs text-purple-600">对比 {compareLabel}</span>
+            <span className="status-pill !px-2 !py-0.5 text-[#5b4a86]" style={{ background: "#efeaf7" }}>对比 {compareLabel}</span>
           )}
           {canCompare && (
             <button
               type="button"
               onClick={() => onToggleCompare(copy.id)}
-              className="rounded-lg border border-gray-300 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-50"
+              className="btn btn-outline !min-h-0 !px-2 !py-0.5 text-xs"
             >
               对比
             </button>
@@ -52,16 +54,16 @@ function CopyRow({ copy, isCurrent, switching, compareLabel, canCompare, onApply
               type="button"
               onClick={() => onApply(copy.id)}
               disabled={switching}
-              className="rounded-lg border border-gray-300 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+              className="btn btn-outline !min-h-0 !px-2 !py-0.5 text-xs"
             >
               设为当前
             </button>
           )}
         </div>
       </div>
-      <p className="mt-1 text-xs text-gray-500">{metaText(copy)}</p>
-      <p className="mt-2 whitespace-pre-wrap text-xs text-gray-700">{copy.description}</p>
-      {copy.sellingPoints && <p className="mt-1 whitespace-pre-wrap text-xs text-gray-600">{copy.sellingPoints}</p>}
+      <p className="mt-1 text-xs text-[var(--workspace-muted)]">{metaText(copy)}</p>
+      <p className="mt-2 whitespace-pre-wrap text-xs text-[#3b534c]">{copy.description}</p>
+      {copy.sellingPoints && <p className="mt-1 whitespace-pre-wrap text-xs text-[var(--workspace-muted)]">{copy.sellingPoints}</p>}
     </li>
   );
 }
@@ -103,16 +105,16 @@ function CompareField({ label, left, right }: { label: string; left: string; rig
 
 function ComparePanel({ a, b, onClose }: { a: CopyView; b: CopyView; onClose: () => void }) {
   return (
-    <div className="rounded-xl border border-purple-200 bg-purple-50/50 p-4">
+    <div className="rounded-xl border border-[var(--workspace-border)] bg-[#f0f4f1] p-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-gray-900">版本对比</p>
-        <button type="button" onClick={onClose} className="rounded-lg border border-gray-300 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-50">
+        <p className="text-sm font-medium">版本对比</p>
+        <button type="button" onClick={onClose} className="btn btn-outline !min-h-0 !px-2 !py-0.5 text-xs">
           关闭对比
         </button>
       </div>
       <div className="mt-2 grid grid-cols-2 gap-2">
-        <p className="rounded-lg bg-white px-2 py-1 text-xs text-gray-600">{metaText(a)}{a.isCurrent ? " · 当前" : ""}</p>
-        <p className="rounded-lg bg-white px-2 py-1 text-xs text-gray-600">{metaText(b)}{b.isCurrent ? " · 当前" : ""}</p>
+        <p className="rounded-lg bg-white px-2 py-1 text-xs text-[var(--workspace-muted)]">{metaText(a)}{a.isCurrent ? " · 当前" : ""}</p>
+        <p className="rounded-lg bg-white px-2 py-1 text-xs text-[var(--workspace-muted)]">{metaText(b)}{b.isCurrent ? " · 当前" : ""}</p>
       </div>
       <div className="mt-2 rounded-lg bg-white p-3">
         <CompareField label="标题" left={a.title} right={b.title} />
@@ -155,7 +157,7 @@ function useCopySwitch(productId: string, shopId: string, onApplied: (copyId: st
   return { switching, switchError, handleApply, retryFailed };
 }
 
-export default function CopyHistory({ productId, shopId, copies }: CopyHistoryProps) {
+export default function CopyHistory({ productId, shopId, copies, flat }: CopyHistoryProps) {
   // 当前版本覆盖值与对比选择列表：只动本标签页局部状态，不整页刷新（保留标签页位置）。
   const [currentCopyId, setCurrentCopyId] = useState<string | null>(null);
   const [compareIds, setCompareIds] = useState<string[]>([]);
@@ -173,9 +175,9 @@ export default function CopyHistory({ productId, shopId, copies }: CopyHistoryPr
 
   if (copies.length === 0) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white p-5">
-        <h2 className="text-base font-semibold text-gray-900">📝 商品文案版本 (0)</h2>
-        <p className="py-6 text-center text-sm text-gray-400">
+      <div className={flat ? "" : "page-card p-5"}>
+        <h2 className="text-base font-semibold">文案版本（0）</h2>
+        <p className="py-6 text-center text-sm text-[var(--workspace-muted)]">
           还没有文案版本。在对话中让 Agent 生成文案后，这里会列出每个版本并支持对比与切换。
         </p>
       </div>
@@ -190,10 +192,10 @@ export default function CopyHistory({ productId, shopId, copies }: CopyHistoryPr
     <div className="grid gap-3">
       {switchError && <ErrorMessage message={switchError} onRetry={retryFailed} />}
       {compareCopies.length === 2 && <ComparePanel a={compareCopies[0]} b={compareCopies[1]} onClose={() => setCompareIds([])} />}
-      <div className="rounded-xl border border-gray-200 bg-white p-5">
+      <div className={flat ? "" : "page-card p-5"}>
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-gray-900">📝 商品文案版本 ({copies.length})</h2>
-          {copies.length < 2 && <p className="text-xs text-gray-400">至少需要两个版本才能对比</p>}
+          <h2 className="text-base font-semibold">文案版本（{copies.length}）</h2>
+          {copies.length < 2 && <p className="text-xs text-[var(--workspace-muted)]">至少需要两个版本才能对比</p>}
         </div>
         <CopyList copies={effectiveCopies} switching={switching} compareIds={compareIds} onApply={handleApply} onToggleCompare={handleToggleCompare} />
       </div>

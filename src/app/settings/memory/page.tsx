@@ -1,5 +1,5 @@
 // 用途：Agent 记忆板块（PRD 故事 43），分类查看、编辑、删除记忆条目。
-import AppShell from "@/components/layout/app-shell";
+import SettingsShell from "@/components/settings/settings-shell";
 import MemoryManager from "@/components/settings/memory-manager";
 
 export const metadata = {
@@ -8,8 +8,8 @@ export const metadata = {
 
 export default function Page() {
   return (
-    <AppShell>
+    <SettingsShell title="Agent 记忆" subtitle="分类查看、编辑、删除店铺画像与偏好记忆。">
       <MemoryManager />
-    </AppShell>
+    </SettingsShell>
   );
 }

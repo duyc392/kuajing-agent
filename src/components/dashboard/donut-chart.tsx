@@ -24,8 +24,8 @@ function sectorPath(cx: number, cy: number, radius: number, startAngle: number, 
 export default function DonutChart({ title, items }: { title: string; items: ShareItem[] }) {
   if (items.length === 0) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white p-5">
-        <p className="text-sm font-medium text-gray-900">{title}</p>
+      <div className="page-card p-5">
+        <p className="text-sm font-medium">{title}</p>
         <p className="mt-2 text-xs text-gray-400">（暂无数据）</p>
       </div>
     );
@@ -39,8 +39,8 @@ export default function DonutChart({ title, items }: { title: string; items: Sha
   const center = 70;
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5">
-      <p className="text-sm font-medium text-gray-900">{title}</p>
+    <div className="page-card p-5">
+      <p className="text-sm font-medium">{title}</p>
       <div className="mt-2 flex items-center gap-4">
         <svg viewBox="0 0 140 140" className="h-28 w-28 shrink-0">
           {segments.map((segment) => (

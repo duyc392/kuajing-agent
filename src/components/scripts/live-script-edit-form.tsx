@@ -119,8 +119,8 @@ export default function LiveScriptEditForm({ segments, submitting, onSubmit, onC
         />
       ))}
       <div className="flex gap-2">
-        <button type="button" onClick={addSegment} className="rounded-lg border border-blue-300 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50">＋ 添加阶段</button>
-        <button type="submit" disabled={submitting || !savable} className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50">
+        <button type="button" onClick={addSegment} className="rounded-lg border border-[#62917d] px-3 py-1.5 text-sm text-[#2e6350] hover:bg-[var(--workspace-soft)]">＋ 添加阶段</button>
+        <button type="submit" disabled={submitting || !savable} className="rounded-lg bg-[var(--workspace-primary)] px-4 py-1.5 text-sm text-white hover:bg-[#315647] disabled:opacity-50">
           {submitting ? "保存中…" : "保存修改"}
         </button>
         <button type="button" onClick={onCancel} className="rounded-lg border border-gray-300 px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-100">取消</button>

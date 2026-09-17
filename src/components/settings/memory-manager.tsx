@@ -105,7 +105,7 @@ function MemoryEditForm({ entry, submitting, onSubmit, onCancel }: {
       </select>
       <textarea className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm" rows={2} value={content} onChange={(event) => setContent(event.target.value)} maxLength={500} />
       <div className="flex gap-2">
-        <button type="submit" disabled={submitting || content.trim() === ""} className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50">
+        <button type="submit" disabled={submitting || content.trim() === ""} className="btn btn-primary btn-sm">
           {submitting ? "保存中…" : "保存"}
         </button>
         <button type="button" onClick={onCancel} className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100">取消</button>
@@ -130,7 +130,7 @@ function MemoryEntryItem({ entry, editing, submitting, onStartEdit, onCancelEdit
     <div className="flex items-start justify-between gap-2">
       <p className="whitespace-pre-wrap text-sm text-gray-800">{entry.content}</p>
       <div className="flex shrink-0 gap-1">
-        <button onClick={onStartEdit} className="rounded-lg border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">编辑</button>
+        <button onClick={onStartEdit} className="btn btn-outline !min-h-0 !px-2 !py-1 text-xs">编辑</button>
         <button onClick={onDelete} className="rounded-lg border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50">删除</button>
       </div>
     </div>
@@ -149,8 +149,8 @@ function MemoryGroupCard({ category, entries, editingId, saving, onStartEdit, on
   onDelete: (id: string) => void;
 }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5">
-      <p className="mb-2 text-sm font-medium text-gray-900">{category}</p>
+    <div className="page-card p-5">
+      <p className="mb-2 text-sm font-medium">{category}</p>
       <div className="grid gap-2">
         {entries.map((entry) => (
           <MemoryEntryItem
@@ -186,16 +186,10 @@ export default function MemoryManager() {
     .filter((group) => group.entries.length > 0);
 
   return (
-    <div className="mx-auto grid max-w-3xl gap-4 px-4 py-8">
-      <header>
-        <h1 className="text-2xl font-bold text-gray-900">Agent 记忆</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Agent 从对话中自动记住的店铺画像与卖家偏好，生成文案、脚本与建议时会自动参考。在对话中告诉它即可，它会自己记住。
-        </p>
-      </header>
+    <div className="grid gap-4">
       {(error || actionError) && <ErrorMessage message={error || actionError} onRetry={refresh} />}
       {groups.length === 0 && (
-        <p className="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-400">
+        <p className="page-card border-dashed p-8 text-center text-sm text-[var(--workspace-muted)]">
           暂无记忆。在对话中告诉 Agent 你的店铺定位、目标人群或内容偏好，它会自动记住。
         </p>
       )}

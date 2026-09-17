@@ -95,15 +95,15 @@ export default function VideoOpsTab({ productId, onGoToScripts, onGoToReview }: 
 // 上半部：短视频创作核心提炼三视图（继承 DNA）。
 function ExtractionCard({ dnaHook }: { dnaHook: { dna: ProductDnaView | null; loaded: boolean; error: string; retry: () => void } }) {
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+    <section className="page-card p-5">
       <div className="flex items-center gap-2">
-        <h2 className="text-sm font-semibold text-gray-900">📺 短视频创作核心提炼</h2>
-        <span className="rounded bg-blue-50 px-1.5 py-0.5 text-xs text-blue-600">继承自商品 DNA</span>
+        <h2 className="text-sm font-semibold">短视频创作核心提炼</h2>
+        <span className="status-pill" data-tone="ok">继承自商品 DNA</span>
       </div>
       {dnaHook.error && <ErrorMessage message={dnaHook.error} onRetry={dnaHook.retry} />}
       {!dnaHook.loaded && !dnaHook.error && <Loading text="加载 DNA…" />}
       {dnaHook.loaded && dnaHook.dna === null && !dnaHook.error && (
-        <p className="mt-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-sm text-gray-400">
+        <p className="mt-3 rounded-lg border border-dashed border-[var(--workspace-border)] bg-[#f6f9f6] p-6 text-center text-sm text-[var(--workspace-muted)]">
           该商品还没有 DNA。去「商品」页建立六维 DNA 后，这里自动生成创作视角。
         </p>
       )}
@@ -137,10 +137,15 @@ function ExtractionFields({ dna }: { dna: ProductDnaView }) {
 // 下半部：本商品已发布视频清单表。
 function PublishedVideoList({ videosHook, onGoToScripts, onGoToReview }: { videosHook: { videos: PublishedVideoView[] | null; error: string; retry: () => void }; onGoToScripts: () => void; onGoToReview: (videoId: string) => void }) {
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+    <section className="page-card p-5">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-gray-900">🎞️ 本商品已发布视频清单 {videosHook.videos !== null && `(${videosHook.videos.length} 条)`}</h2>
-        <button onClick={onGoToScripts} className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700">
+        <h2 className="flex items-center gap-2 text-sm font-semibold">
+          本商品已发布视频 {videosHook.videos !== null && `(${videosHook.videos.length} 条)`}
+          {videosHook.videos !== null && videosHook.videos.some((video) => video.source === "demo") && (
+            <span className="status-pill" data-tone="warn">演示数据</span>
+          )}
+        </h2>
+        <button onClick={onGoToScripts} className="btn btn-primary btn-sm">
           ＋ 写新视频脚本
         </button>
       </div>
@@ -154,7 +159,7 @@ function PublishedVideoList({ videosHook, onGoToScripts, onGoToReview }: { video
 function VideoTable({ videos, onGoToReview }: { videos: PublishedVideoView[]; onGoToReview: (videoId: string) => void }) {
   if (videos.length === 0) {
     return (
-      <p className="mt-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-sm text-gray-400">
+      <p className="mt-3 rounded-lg border border-dashed border-[var(--workspace-border)] bg-[#f6f9f6] p-6 text-center text-sm text-[var(--workspace-muted)]">
         还没有发布过视频。写脚本、拍摄发布后，数据会回流到这里。
       </p>
     );
@@ -163,31 +168,31 @@ function VideoTable({ videos, onGoToReview }: { videos: PublishedVideoView[]; on
     <div className="mt-4 overflow-x-auto">
       <table className="w-full border-collapse text-left">
         <thead>
-          <tr className="border-b border-gray-100 bg-gray-50/70">
-            <th className="px-3 py-2 text-xs font-medium text-gray-500">视频标题 / Hook</th>
-            <th className="px-3 py-2 text-xs font-medium text-gray-500">流派角度</th>
-            <th className="px-3 py-2 text-xs font-medium text-gray-500">时长</th>
-            <th className="px-3 py-2 text-xs font-medium text-gray-500">播放量</th>
-            <th className="px-3 py-2 text-xs font-medium text-gray-500">带货销量</th>
-            <th className="px-3 py-2 text-xs font-medium text-gray-500">状态</th>
-            <th className="px-3 py-2 text-xs font-medium text-gray-500">操作</th>
+          <tr className="border-b border-[var(--workspace-border)] bg-[#f0f4f1]">
+            <th className="px-3 py-2 text-xs font-medium text-[var(--workspace-muted)]">视频标题 / Hook</th>
+            <th className="px-3 py-2 text-xs font-medium text-[var(--workspace-muted)]">流派角度</th>
+            <th className="px-3 py-2 text-xs font-medium text-[var(--workspace-muted)]">时长</th>
+            <th className="px-3 py-2 text-xs font-medium text-[var(--workspace-muted)]">播放量</th>
+            <th className="px-3 py-2 text-xs font-medium text-[var(--workspace-muted)]">带货销量</th>
+            <th className="px-3 py-2 text-xs font-medium text-[var(--workspace-muted)]">状态</th>
+            <th className="px-3 py-2 text-xs font-medium text-[var(--workspace-muted)]">操作</th>
           </tr>
         </thead>
         <tbody>
           {videos.map((video) => (
-            <tr key={video.id} className="border-b border-gray-100 last:border-b-0">
-              <td className="px-3 py-2.5 text-sm font-medium text-gray-900">{video.title}</td>
-              <td className="px-3 py-2.5 text-sm text-gray-600">{video.angle}</td>
-              <td className="px-3 py-2.5 text-sm text-gray-600">{video.durationSeconds} 秒</td>
-              <td className="px-3 py-2.5 text-sm font-semibold text-gray-900">{video.playCount.toLocaleString()}</td>
-              <td className="px-3 py-2.5 text-sm text-gray-600">
+            <tr key={video.id} className="border-b border-[var(--workspace-border)] last:border-b-0">
+              <td className="px-3 py-2.5 text-sm font-medium">{video.title}</td>
+              <td className="px-3 py-2.5 text-sm text-[#3b534c]">{video.angle}</td>
+              <td className="px-3 py-2.5 text-sm text-[#3b534c]">{video.durationSeconds} 秒</td>
+              <td className="px-3 py-2.5 text-sm font-semibold">{video.playCount.toLocaleString()}</td>
+              <td className="px-3 py-2.5 text-sm text-[#3b534c]">
                 {video.orderCount} 单 ({video.gmv.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 })})
               </td>
               <td className="px-3 py-2.5">
                 <span className={`rounded-full px-2 py-0.5 text-xs ${STATUS_TAG_CLASS[video.status] ?? "bg-gray-100 text-gray-500"}`}>{video.status}</span>
               </td>
               <td className="px-3 py-2.5">
-                <button onClick={() => onGoToReview(video.id)} className="rounded-lg border border-gray-300 px-2.5 py-1 text-xs text-gray-600 hover:bg-gray-50">
+                <button onClick={() => onGoToReview(video.id)} className="btn btn-outline !min-h-0 !px-2.5 !py-1 text-xs">
                   查看漏斗复盘
                 </button>
               </td>

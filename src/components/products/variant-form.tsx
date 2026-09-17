@@ -24,7 +24,7 @@ function FormField({ label, placeholder, value, onChange }: FormFieldProps) {
     <label className="grid gap-1 text-xs text-gray-600">
       {label}
       <input
-        className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+        className="field-input"
         value={value}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
@@ -65,7 +65,7 @@ export default function VariantForm({ initial, submitting, onSubmit, onCancel, s
 
   return (
     <form
-      className="grid grid-cols-2 gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 sm:grid-cols-5"
+      className="grid grid-cols-2 gap-3 rounded-xl bg-[#f0f4f1] p-4 sm:grid-cols-5"
       onSubmit={(event) => {
         event.preventDefault();
         onSubmit(values);
@@ -80,12 +80,12 @@ export default function VariantForm({ initial, submitting, onSubmit, onCancel, s
         <button
           type="submit"
           disabled={submitting || values.sku.trim() === ""}
-          className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+          className="btn btn-primary btn-sm"
         >
           {submitting ? "保存中…" : submitLabel}
         </button>
         {onCancel && (
-          <button type="button" onClick={onCancel} className="rounded-lg border border-gray-300 px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-100">
+          <button type="button" onClick={onCancel} className="btn btn-outline btn-sm">
             取消
           </button>
         )}

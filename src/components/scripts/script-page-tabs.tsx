@@ -10,7 +10,7 @@ type ScriptTab = "video" | "live";
 export default function ScriptPageTabs() {
   const [tab, setTab] = useState<ScriptTab>("video");
   const tabClass = (active: boolean) =>
-    `rounded-lg px-4 py-1.5 text-sm ${active ? "bg-blue-600 text-white" : "border border-gray-300 text-gray-600 hover:bg-gray-100"}`;
+    `rounded-lg px-4 py-1.5 text-sm ${active ? "bg-[var(--workspace-primary)] text-white" : "border border-gray-300 text-gray-600 hover:bg-gray-100"}`;
 
   return (
     <div className="mx-auto grid max-w-3xl gap-3 px-4 py-8">

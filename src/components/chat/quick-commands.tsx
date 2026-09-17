@@ -11,6 +11,7 @@ import type { ProductSummary } from "@/types";
 interface QuickCommandsProps {
   disabled: boolean;
   onSend: (prompt: string) => void;
+  appearance?: "default" | "home";
 }
 
 // 无需额外参数的指令：点击直接发送（写脚本补全类型与时长，数据解读按故事 29 走纯对话诊断）。
@@ -47,7 +48,7 @@ function ProductPicker({ shopId, disabled, onPick }: { shopId: string; disabled:
           type="button"
           disabled={disabled}
           onClick={() => onPick(product.name)}
-          className="rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-xs text-gray-700 hover:border-blue-300 hover:text-blue-600 disabled:opacity-50"
+          className="rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-xs text-gray-700 hover:border-[#62917d] hover:text-[#2e6350] disabled:opacity-50"
         >
           {product.name}
         </button>
@@ -77,12 +78,12 @@ function KeywordPicker({ disabled, onPick }: { disabled: boolean; onPick: (keywo
         disabled={disabled}
         onChange={(event) => setKeyword(event.target.value)}
         placeholder="输入品类关键词，如：宠物用品"
-        className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs focus:border-blue-500 focus:outline-none"
+        className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs focus:border-[#41876d] focus:outline-none"
       />
       <button
         type="submit"
         disabled={disabled || keyword.trim() === ""}
-        className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        className="rounded-lg bg-[var(--workspace-primary)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#315647] disabled:opacity-50"
       >
         分析
       </button>
@@ -90,7 +91,7 @@ function KeywordPicker({ disabled, onPick }: { disabled: boolean; onPick: (keywo
   );
 }
 
-export default function QuickCommands({ disabled, onSend }: QuickCommandsProps) {
+export default function QuickCommands({ disabled, onSend, appearance = "default" }: QuickCommandsProps) {
   const { currentShopId } = useShops();
   const [param, setParam] = useState<"copy" | "selection" | null>(null);
 
@@ -104,10 +105,10 @@ export default function QuickCommands({ disabled, onSend }: QuickCommandsProps) 
   }
 
   const buttonClass =
-    "rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-600 hover:border-blue-300 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50";
+    "rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-600 hover:border-[#62917d] hover:text-[#2e6350] disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
-    <div className="bg-white px-4 pt-3">
+    <div className={appearance === "home" ? "workspace-shortcuts" : "bg-white px-4 pt-3"}>
       <div className="mx-auto w-full max-w-3xl">
         <div className="flex flex-wrap gap-2">
           {IMMEDIATE_COMMANDS.map((command) => (

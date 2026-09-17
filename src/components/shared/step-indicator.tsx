@@ -15,7 +15,7 @@ export function StepIndicator({ steps }: StepIndicatorProps) {
         <li key={step.label} className="flex items-center gap-2">
           <span
             className={`flex h-6 w-6 items-center justify-center rounded-full font-semibold ${
-              step.active ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-500"
+              step.active ? "bg-[var(--workspace-primary)] text-white" : "bg-gray-200 text-gray-500"
             }`}
           >
             {index + 1}

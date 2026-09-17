@@ -5,13 +5,17 @@ import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api-client";
 import type { ScriptDetailView } from "@/types";
 
-export function useScriptDetail(scriptId: string, currentShopId: string | null) {
+export function useScriptDetail(scriptId: string | null, currentShopId: string | null) {
   const [script, setScript] = useState<ScriptDetailView | null>(null);
   const [error, setError] = useState("");
   const [reloadCount, setReloadCount] = useState(0);
 
   useEffect(() => {
-    if (!currentShopId) return;
+    if (!currentShopId || scriptId === null) {
+      setScript(null);
+      setError("");
+      return;
+    }
     let stale = false;
     const controller = new AbortController();
     setScript(null);
