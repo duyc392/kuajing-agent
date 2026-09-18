@@ -47,3 +47,5 @@ prisma/*test*.db*
 
 # 本地资料归档（与代码库无关的过程文档）
 资料归档/
+AGENTS.md
+DESIGN.md
