@@ -56,7 +56,13 @@ cp .env.example .env   # 按文件内注释填写
 npm run db:push        # 初始化本地 SQLite 数据库
 npm run db:seed        # 可选：向空数据库填充演示数据
 npm run dev            # 打开 http://localhost:3000
+
+npm run typecheck      # TypeScript 类型检查
+npm test               # 单元 + 集成测试（自动创建临时 SQLite 库，不改动 data/kuajing.db）
+npm run build          # 生产构建
 ```
+
+> `main` 分支的 GitHub Actions 会在每个 PR 与 push 时自动运行 `typecheck`、`test`、`build`；本地提交前建议先跑一遍同样的命令。
 
 > 手动启动前先做一次 data 目录权限加固（启动脚本会自动完成，此处是手动流程的等价步骤）：
 > - Windows：`icacls data /inheritance:r /grant:r "%USERNAME%:(OI)(CI)F" "SYSTEM:(OI)(CI)F" "Administrators:(OI)(CI)F"`

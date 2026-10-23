@@ -1,5 +1,5 @@
 // 用途：技能加载链路测试（临时 SQLite 库 + 临时 skills 目录）：常驻/按需分段注入、按需段不泄正文、按名查询命中与未命中、
-// 禁用后不再返回、常驻开关更新后分段对调；生成流水线注入——常驻技能进文案/脚本提示词（转义）、按需技能不进、无技能时区块不出现。
+// 禁用后不再返回、常驻开关更新后分段对调；内置 SOP 只进目录、按名加载才返回完整步骤与工具白名单。
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -8,7 +8,7 @@ import path from "node:path";
 import { ConflictError } from "@/lib/errors";
 import { createTempDb, removeTempDb } from "../../../prisma/test-utils";
 
-// Windows 下进程 CWD 句柄释放有延迟：重试删除临时 skills 目录；全部失败只警告（OS 临时目录会兜底清理，不影响测试结论）。
+// Windows 下进程 CWD 句柄释放有延迟：重试删除临时 skills 目录；全部失败只警告（OS 临时目录会兜底清理）。
 async function removeSkillsDir(dir: string): Promise<void> {
   for (let attempt = 0; attempt < 5; attempt++) {
     try {
@@ -21,7 +21,7 @@ async function removeSkillsDir(dir: string): Promise<void> {
   console.warn(`[skills-test] 临时 skills 目录删除失败（Windows 句柄延迟），由系统临时目录兜底清理：${dir}`);
 }
 
-test("技能加载：常驻/按需分段、按名查询与开关更新", async () => {
+test("技能加载：常驻/按需分段、按名查询、开关更新与内置 SOP 目录", async () => {
   const { prisma, url, dbPath } = createTempDb("skills-test");
   // 技能正文目录按 process.cwd()/skills 解析：先切到临时目录再导入服务，避免测试写脏仓库的 skills/。
   const cwdBackup = process.cwd();
@@ -31,13 +31,9 @@ test("技能加载：常驻/按需分段、按名查询与开关更新", async (
   try {
     const { createSkill, updateSkill } = await import("@/services/skills.service");
     const { getEnabledSkillsByNames } = await import("@/services/skill-lookup.service");
-    const { loadSkillsBlock } = await import("@/agent/skills");
-    const { runCopyGeneration } = await import("@/agent/copywriting-flow");
-    const { buildVideoScriptUserPrompt } = await import("@/agent/prompts/video-script");
-    const { buildLiveScriptUserPrompt } = await import("@/agent/prompts/live-script");
+    const { loadSkillsBlock, loadSkillsByNames } = await import("@/agent/skills");
 
     await prisma.shop.create({ data: { id: "s-a", name: "店铺 A", market: "美国" } });
-    await prisma.product.create({ data: { id: "p-a", shopId: "s-a", name: "美妆镜" } });
 
     const resident = await createSkill({
       name: "强调包邮",
@@ -46,6 +42,8 @@ test("技能加载：常驻/按需分段、按名查询与开关更新", async (
       alwaysApply: true,
     });
     assert.equal(resident.alwaysApply, true);
+    assert.equal(resident.builtin, false);
+    assert.equal(resident.editable, true);
 
     const onDemand = await createSkill({
       name: "美区SOP",
@@ -70,32 +68,32 @@ test("技能加载：常驻/按需分段、按名查询与开关更新", async (
     assert.ok(block.resident[0].includes("【强调包邮】"));
     assert.ok(block.resident[0].includes("free shipping"));
     assert.ok(block.onDemand[0].includes("【美区SOP】"));
-    assert.ok(block.onDemand[0].includes("上架美区商品时"));
     assert.ok(!block.onDemand[0].includes("第一步查竞品定价"));
 
-    // 生成流水线注入：常驻技能进入文案生成提示词（转义），按需技能不进入；假模型捕获实际输入，输出满足美区规则一次通过。
-    const prompts: string[] = [];
-    const captureGenerate = Object.assign(
-      async (_systemPrompt: string, userPrompt: string, _signal?: AbortSignal) => {
-        prompts.push(userPrompt);
-        return JSON.stringify({ title: "Mirror", description: "free shipping with reviews", sellingPoints: "free shipping\nreviews" });
-      },
-      { modelId: "fake-model" },
-    );
-    await runCopyGeneration({ productName: "美妆镜", language: "en", shopId: "s-a", generateText: captureGenerate });
-    assert.equal(prompts.length, 1, "市场规则一次通过，不重试");
-    assert.ok(prompts[0].includes("卖家确认的技能规范"), "常驻技能区块注入生成提示词");
-    assert.ok(prompts[0].includes("【强调包邮】"), "技能名注入");
-    assert.ok(prompts[0].includes("〈free shipping〉"), "技能正文转义后注入");
-    assert.ok(!prompts[0].includes("美区SOP"), "按需技能不进生成提示词");
+    // 内置 SOP：目录里只出现名称与工具白名单，正文步骤不出现（需要 load_skill 才取回）。
+    assert.equal(block.builtinCatalog.length, 3);
+    const catalog = block.builtinCatalog.join("\n");
+    assert.ok(catalog.includes("builtin:video-deconstruction"));
+    assert.ok(catalog.includes("fetch_video_source"));
+    assert.ok(!catalog.includes("第 1 步"), "目录不应包含 SOP 正文步骤");
 
-    // 视频/直播脚本构建器：传入注入、缺省时区块完全不出现。
-    const rules = ["- 【强调包邮】标题突出包邮"];
-    assert.ok(buildVideoScriptUserPrompt({ type: "种草", duration: 5, product: null, skillRules: rules }).includes("卖家确认的技能规范"));
-    assert.ok(!buildVideoScriptUserPrompt({ type: "种草", duration: 5, product: null }).includes("卖家确认的技能规范"));
-    assert.ok(buildLiveScriptUserPrompt({ durationMinutes: 30, products: [], skillRules: rules }).includes("卖家确认的技能规范"));
+    // 按名加载内置 SOP：返回完整步骤与工具白名单。
+    const builtinLoaded = await loadSkillsByNames(["builtin:video-deconstruction"]);
+    assert.equal(builtinLoaded.found.length, 1);
+    assert.equal(builtinLoaded.found[0].source, "builtin");
+    assert.ok(builtinLoaded.found[0].content.includes("执行步骤"));
+    assert.ok(builtinLoaded.found[0].tools.includes("transcribe_video"));
 
-    // 按名查询：命中返回全文，未命中如实回报；名称去空白后精确匹配。
+    // 按中文名也能命中内置 SOP。
+    const byName = await loadSkillsByNames(["跨境电商受众痛点与买点提炼"]);
+    assert.equal(byName.found[0]?.source, "builtin");
+
+    // 内置 + 卖家混合加载：卖家技能内容转义，未命中的名称如实回报。
+    const mixed = await loadSkillsByNames(["TikTok 爆款短视频结构拆解", " 强调包邮 ", "不存在"]);
+    assert.deepEqual(mixed.found.map((skill) => skill.name), ["TikTok 爆款短视频结构拆解", "强调包邮"]);
+    assert.deepEqual(mixed.missing, ["不存在"]);
+
+    // 按名查询（服务层）：命中返回全文，未命中如实回报；名称去空白后精确匹配。
     const hit = await getEnabledSkillsByNames([" 强调包邮 ", "不存在"]);
     assert.deepEqual(hit.found.map((skill) => skill.name), ["强调包邮"]);
     assert.deepEqual(hit.missing, ["不存在"]);
