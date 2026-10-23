@@ -5,9 +5,9 @@
 import type { ProductDnaInput } from "./product";
 import type { ScriptShot } from "./script";
 
-export const MARKET_TOOL_NAME = "analyze_market";
-export const RECOMMEND_TOOL_NAME = "recommend_products";
-export const COMPETITOR_TOOL_NAME = "analyze_competitor";
+export const PRESENT_REPORT_TOOL_NAME = "present_report";
+
+// 报告卡投影：主 Agent 按 Skill SOP 得出结论后，调 present_report 把结论提交为结构化卡片（工具只校验字段，不生成内容）。
 
 // 故事 13 市场分析报告卡：市场容量、竞争度、增长趋势、利润空间 + 关键数据点。
 export interface MarketAnalysisDetails {
@@ -43,10 +43,15 @@ export interface CompetitorDetails {
   differentiation: string;
 }
 
-// 模型组合输出的统一结构：summary 给 Agent 转述与用户阅读，card 给前端结构化卡片。
-export interface SelectionComposition<T> {
-  summary: string;
-  card: T;
+// 模型组合输出的统一结构已由 present_report 的投影契约替代：summary 给用户阅读，card 给前端结构化卡片。
+export type ReportPresentation =
+  | { kind: "market"; data: MarketAnalysisDetails }
+  | { kind: "recommendation"; data: RecommendationDetails }
+  | { kind: "competitor"; data: CompetitorDetails };
+
+export interface PresentReportDetails {
+  kind: ReportPresentation["kind"];
+  data: MarketAnalysisDetails | RecommendationDetails | CompetitorDetails;
 }
 
 // ================= 选品工作台（智能选品与测品 SPEC v3 / 原型复刻） =================

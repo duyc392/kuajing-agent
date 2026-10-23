@@ -1,0 +1,63 @@
+// 用途：内置 Skill「多语言本土化分镜脚本编排」——纯数据 SOP，没有 execute、不调用模型、不碰数据库。
+// 主 Agent 按本 SOP 综合拆解与痛点结论，产出可直接拍摄/生成的三要素分镜，并过硬性校验后才落库。
+import type { AgentSkillDefinition } from "@/types";
+
+export const localizedStoryboardSkill: AgentSkillDefinition = {
+  id: "builtin:localized-storyboard",
+  name: "多语言本土化分镜脚本编排",
+  description: "卖家要写带货分镜、做本土化脚本、配口播与主图、把拆解结论落成可拍摄脚本时使用",
+  triggers: ["分镜", "脚本", "口播", "本土化", "带货视频", "镜头", "CTA", "小黄车"],
+  tools: [
+    "query_shop_knowledge_base",
+    "list_snapshots",
+    "load_snapshot",
+    "fetch_market_data",
+    "calc_unit_economics",
+    "validate_storyboard",
+    "check_tiktok_compliance",
+    "render_product_image",
+    "run_image_workflow",
+    "generate_localized_tts",
+    "save_video_script",
+    "save_snapshot",
+  ],
+  sop: [
+    "1. 先确认三件事：商品（名称/卖点）、目标市场与语言、目标时长（秒）。缺哪一项就问，不要默认 30 秒。",
+    "2. 调 list_snapshots 看有没有 video-deconstruction 与 audience-insights 快照。有就 load_snapshot 取结论复用；没有就明确告诉卖家「需要先做拆解/评论分析」，禁止凭空编痛点。",
+    "3. 需要补充市场依据时调 fetch_market_data；需要判断能不能赚钱时调 calc_unit_economics，数字只引用工具结果。",
+    "4. 分配秒数：Hook ≤3 秒，痛点 3-6 秒，卖点演示占 40%-50%，社会证明 2-4 秒，CTA 3-5 秒，各镜之和必须精确等于目标时长。",
+    "5. 每一镜必须写全四要素：中文画面指令、英文生图提示词、目标语言口播、目标语言字幕；另外补 audioNote（BGM 或音效指令）。",
+    "6. 英文提示词按固定顺序写：主体 → 场景 → 光线 → 机位构图 → 风格 → 画质；只允许 ASCII 字符，不要 emoji、不要中文。要出图时把这个提示词交给 render_product_image；换背景/换装这类固定场景改用 run_image_workflow，只需给英文 subject 与 scene。",
+    "7. 口播必须是目标市场口语：美区用 you、短句、缩写，禁止书面语与中式直译；每镜口播不超过两句。",
+    "8. 至少一镜要挂 painPointId，并在画面里直接展示上一阶段要求的「必须出现的实证画面」。",
+    "9. CTA 必须有紧迫感（限时/折扣/倒计时）和明确动作（点小黄车），口语化收尾。",
+    "10. 草稿完成后先调 validate_storyboard，按返回的 problems 逐条改，改到 valid=true 为止。",
+    "11. 再把口播与屏幕贴字交给 check_tiktok_compliance；有 high 级命中就改写并重扫，通过后才允许保存。",
+    "12. 两项都过，调 save_video_script 落库；需要主图/分镜图就调 run_image_workflow（换背景、换装、分镜草图都用它，只需给英文 subject 与 scene）或 render_product_image（要自由构图时用），需要配音就调 generate_localized_tts。最后 save_snapshot 存 storyboard。",
+    "13. 卖家说「第 3 镜不满意」时：load_snapshot 取当前版本，只改第 3 镜，重跑第 10、11 步，再 save_video_script 生成新版本；其余镜头与时间轴保持不变。",
+  ],
+  delivery: [
+    "【基本信息】商品 / 市场 / 语言 / 总时长 / 钩子类型。",
+    "【分镜表】每镜：序号 / 阶段 / 秒数 / 画面指令 / 英文生图提示词 / 口播 / 字幕 / 音频指令 / 关联痛点。",
+    "【CTA】话术 + 紧迫感设计 + 小黄车引导动作。",
+    "【校验结果】validate_storyboard 是否通过、check_tiktok_compliance 风险等级与命中词。",
+    "【产出物】脚本 ID、生成的图片/音频路径（如有）。",
+  ],
+  rubric: [
+    { key: "duration_exact", weight: 0.15, hardGate: true, check: "code", description: "分镜秒数之和必须精确等于目标时长" },
+    { key: "hook_within_3s", weight: 0.1, hardGate: true, check: "code", description: "第一镜不超过 3 秒且阶段为 hook" },
+    { key: "three_elements", weight: 0.2, hardGate: true, check: "code", description: "每镜四要素（画面/生图提示词/口播/字幕）与音频指令齐全，字幕不超过 90 字符" },
+    { key: "comfyui_prompt_en", weight: 0.1, hardGate: true, check: "code", description: "生图提示词只含 ASCII 字符" },
+    { key: "phase_coverage", weight: 0.1, hardGate: true, check: "code", description: "hook/pain/demo/proof/cta 五个阶段各至少一镜" },
+    { key: "pain_linkage", weight: 0.15, hardGate: true, check: "code", description: "至少一镜关联具体痛点编号" },
+    { key: "localization", weight: 0.1, hardGate: false, check: "model", description: "口播是目标市场口语，无 Chinglish" },
+    { key: "cta_conversion", weight: 0.05, hardGate: false, check: "model", description: "CTA 有紧迫感与明确动作" },
+    { key: "compliance_passed", weight: 0.05, hardGate: true, check: "code", description: "合规扫描无 high 级命中" },
+  ],
+  fewShot: [
+    "合格示例（单镜）：#1｜hook｜2s｜画面：女孩把手机怼近镜头，屏幕上电量只剩 3%｜提示词：close-up of a woman holding a phone with 3 percent battery, morning bedroom, soft window light, handheld shot, realistic, 4k｜口播：Still charging twice a day?｜字幕：Still charging twice a day?｜音频：静音 0.5s 后爆点鼓声｜痛点：P1",
+    "不合格示例：口播写「This product has excellent battery life and is very suitable for daily use」——书面语、信息量为零、不是当地口语，且没有关联任何痛点。",
+  ],
+  builtin: true,
+  editable: false,
+};

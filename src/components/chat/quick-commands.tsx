@@ -21,7 +21,7 @@ const IMMEDIATE_COMMANDS = [
   { label: "运营建议", prompt: "请给我一份综合运营建议：综合店铺数据、市场趋势、竞品动态和平台规则，按阶段给出可执行的具体建议" },
 ] as const;
 
-// 商品选择器：加载当前店铺商品，点击后回调商品名（补全 generate_product_copy 的 productName）。
+// 商品选择器：加载当前店铺商品，点击后回调商品名（补全 save_product_copy 的 productName）。
 function ProductPicker({ shopId, disabled, onPick }: { shopId: string; disabled: boolean; onPick: (name: string) => void }) {
   const [products, setProducts] = useState<ProductSummary[]>([]);
   const [error, setError] = useState("");
@@ -57,7 +57,7 @@ function ProductPicker({ shopId, disabled, onPick }: { shopId: string; disabled:
   );
 }
 
-// 关键词输入器：输入品类关键词后提交（补全 analyze_market 的 keywords）。
+// 关键词输入器：输入品类关键词后提交（补全 fetch_market_data 的 keywords）。
 function KeywordPicker({ disabled, onPick }: { disabled: boolean; onPick: (keyword: string) => void }) {
   const [keyword, setKeyword] = useState("");
   function submit() {

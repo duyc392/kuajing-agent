@@ -2,9 +2,18 @@
 // 文案/视频脚本/直播脚本/选品调研有专属卡片，未知工具显示通用回退卡片。
 "use client";
 
-import { COMPETITOR_TOOL_NAME, COPY_TOOL_NAME, IMAGE_TOOL_NAME, IMAGE_VARIANT_TOOL_NAME, LIVE_SCRIPT_TOOL_NAME, MARKET_TOOL_NAME, PROPOSE_SKILL_TOOL_NAME, RECOMMEND_TOOL_NAME, SCRIPT_TOOL_NAME, SELECTION_WORKBENCH_TOOL_NAME } from "@/types";
-import type { CopyToolDetails, ImageToolDetails, LiveScriptToolDetails, ScriptToolDetails, ToolCallRecord } from "@/types";
-import { CompetitorCard, MarketAnalysisCard, RecommendationCard } from "@/components/chat/selection-tool-cards";
+import {
+  COPY_TOOL_NAME,
+  IMAGE_RECORD_TOOL_NAME,
+  IMAGE_TOOL_NAME,
+  LIVE_SCRIPT_TOOL_NAME,
+  PRESENT_REPORT_TOOL_NAME,
+  PROPOSE_SKILL_TOOL_NAME,
+  SCRIPT_TOOL_NAME,
+  SELECTION_WORKBENCH_TOOL_NAME,
+} from "@/types";
+import type { CopyToolDetails, LiveScriptToolDetails, RenderImageDetails, ScriptToolDetails, ToolCallRecord } from "@/types";
+import { PresentReportCard } from "@/components/chat/selection-tool-cards";
 import SkillProposalCard from "@/components/chat/skill-proposal-card";
 import SelectionWorkbenchCard from "@/components/chat/selection-workbench-card";
 import ToolStatusCard, { cardStyle } from "@/components/chat/tool-status-card";
@@ -67,7 +76,7 @@ function LiveScriptToolCard({ call }: { call: ToolCallRecord }) {
 function ImageToolCard({ call }: { call: ToolCallRecord }) {
   if (call.status === "running") return <ToolStatusCard label={call.label} status="running" meta="（生成图片通常需要十几秒）" />;
   if (call.status === "error") return <ToolStatusCard label={call.label} status="error" error={call.error} />;
-  const details = call.details as ImageToolDetails | undefined;
+  const details = call.details as RenderImageDetails | undefined;
   if (!details || !Array.isArray(details.paths)) return <ToolStatusCard label={call.label} status="invalid" />;
   return (
     <div className={cardStyle("green")}>
@@ -95,10 +104,8 @@ export default function ToolCard({ call, messageId }: { call: ToolCallRecord; me
   if (call.toolName === COPY_TOOL_NAME) return <CopyToolCard call={call} />;
   if (call.toolName === SCRIPT_TOOL_NAME) return <ScriptToolCard call={call} />;
   if (call.toolName === LIVE_SCRIPT_TOOL_NAME) return <LiveScriptToolCard call={call} />;
-  if (call.toolName === MARKET_TOOL_NAME) return <MarketAnalysisCard call={call} />;
-  if (call.toolName === RECOMMEND_TOOL_NAME) return <RecommendationCard call={call} />;
-  if (call.toolName === COMPETITOR_TOOL_NAME) return <CompetitorCard call={call} />;
-  if (call.toolName === IMAGE_TOOL_NAME || call.toolName === IMAGE_VARIANT_TOOL_NAME) return <ImageToolCard call={call} />;
+  if (call.toolName === PRESENT_REPORT_TOOL_NAME) return <PresentReportCard call={call} />;
+  if (call.toolName === IMAGE_TOOL_NAME || call.toolName === IMAGE_RECORD_TOOL_NAME) return <ImageToolCard call={call} />;
   if (call.toolName === PROPOSE_SKILL_TOOL_NAME) return <SkillProposalCard call={call} messageId={messageId} />;
   if (call.toolName === SELECTION_WORKBENCH_TOOL_NAME) return <SelectionWorkbenchCard call={call} />;
   return <GenericToolCard call={call} />;

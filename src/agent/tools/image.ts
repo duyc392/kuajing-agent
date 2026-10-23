@@ -1,55 +1,107 @@
-// 用途：生图工具（PRD 故事 22-24）：主图/详情图序列/变体，数据链路——对话请求 → 文本模型组合绘图提示词 →
-// 调 gpt-image-2 → 图片文件写入 public/generated/ → 数据库写 ProductImage 草稿记录，应用动作在商品详情页完成。
-// 参数 schema 用 TypeBox（pi-agent-core 的 AgentTool.parameters 契约要求 TSchema）。
+// 用途：图片生产工具：自由出图、固定工作流出图、图片建档各一个工具。
+// 三者共用同一个生图模型与接口；区别只在提示词来源（Agent 自由写 / 固定模板）与是否写档案。
 import { Type, type Static } from "typebox";
 import type { AgentTool, AgentToolResult } from "@earendil-works/pi-agent-core";
-import { runImageVariantGeneration, runProductImageGeneration } from "@/agent/image-flow";
-import type { GenerateTextFn, ImageToolDetails } from "@/types";
+import { renderImages } from "@/services/image-render.service";
+import { runImageWorkflow } from "@/services/image-workflow.service";
+import { saveGeneratedImageRecords } from "@/services/product-image-record.service";
+import { IMAGE_WORKFLOW_TEMPLATES, WORKFLOW_MAX_IMAGES } from "@/lib/image-workflows";
+import {
+  IMAGE_RECORD_TOOL_NAME,
+  IMAGE_TOOL_NAME,
+  IMAGE_WORKFLOW_TOOL_NAME,
+  type ImageWorkflowDetails,
+  type ProductImageType,
+  type RenderImageDetails,
+  type SavedImageRecordDetails,
+} from "@/types";
 
-interface ImageToolDeps {
-  shopId: string;
-  generateText: GenerateTextFn;
-}
+const typeSchema = Type.Union([Type.Literal("main"), Type.Literal("detail"), Type.Literal("variant")]);
 
-const generationSchema = Type.Object({
-  productName: Type.String({ description: "商品名称，必须使用卖家消息中的商品名称原文，不要翻译或改写", minLength: 1, maxLength: 200, pattern: "\\S" }),
-  type: Type.Union([Type.Literal("main"), Type.Literal("detail")], {
-    description: "图片用途：main=商品主图（1 张）；detail=详情图序列（多张，覆盖卖点/场景/参数）",
+const renderSchema = Type.Object({
+  productName: Type.String({ description: "商品名称，用卖家消息里的原文", minLength: 1, maxLength: 200, pattern: "\\S" }),
+  type: typeSchema,
+  prompt: Type.String({
+    description: "英文出图提示词：主体 → 场景 → 光线 → 机位构图 → 风格 → 画质；只允许英文与半角符号",
+    minLength: 10,
+    maxLength: 2000,
+    pattern: "\\S",
   }),
-  count: Type.Optional(
-    Type.Integer({ description: "详情图数量（2-3 张）；type 为 main 时忽略此参数", minimum: 2, maximum: 3 }),
+  count: Type.Optional(Type.Integer({ description: "生成张数，默认 1，上限 4", minimum: 1, maximum: 4 })),
+  referencePath: Type.Optional(
+    Type.String({ description: "可选：参考图在站内的路径（如 /generated/xxx.png），用于生成变体", maxLength: 500 }),
   ),
 });
 
-const variantSchema = Type.Object({
-  productName: Type.String({ description: "商品名称，必须使用卖家消息中的商品名称原文，不要翻译或改写", minLength: 1, maxLength: 200, pattern: "\\S" }),
-  instruction: Type.String({ description: "变体要求：新背景或使用场景描述（保持商品主体不变）", minLength: 1, maxLength: 500, pattern: "\\S" }),
+const workflowSchema = Type.Object({
+  workflow: Type.Union(
+    [Type.Literal("text-to-image"), Type.Literal("background-replace"), Type.Literal("model-swap"), Type.Literal("storyboard")],
+    {
+      description:
+        "固定工作流：text-to-image 纯文生图 / background-replace 白底图换背景 / model-swap 模特换装 / storyboard 分镜草图。提示词模板已内置，保证同款商品多次出图风格一致",
+    },
+  ),
+  subject: Type.String({
+    description: "商品主体英文描述，如 matte black stainless steel water bottle with a bamboo lid；只写英文",
+    minLength: 5,
+    maxLength: 500,
+    pattern: "\\S",
+  }),
+  scene: Type.String({
+    description: "场景英文描述，如 sunlit kitchen counter with a linen cloth；只写英文",
+    minLength: 3,
+    maxLength: 500,
+    pattern: "\\S",
+  }),
+  count: Type.Optional(Type.Integer({ description: `生成张数，默认 1，上限 ${WORKFLOW_MAX_IMAGES}`, minimum: 1, maximum: WORKFLOW_MAX_IMAGES })),
+  referencePath: Type.Optional(
+    Type.String({ description: "商品原图站内路径（如 /generated/xxx.png）；换背景与换装必填其一", maxLength: 500 }),
+  ),
+  referenceUrl: Type.Optional(
+    Type.String({ description: "商品原图 https 链接；换背景与换装必填其一", maxLength: 1000 }),
+  ),
 });
 
-type GenerationParams = Static<typeof generationSchema>;
-type VariantParams = Static<typeof variantSchema>;
+type WorkflowParams = Static<typeof workflowSchema>;
 
-export function createProductImageTool(deps: ImageToolDeps): AgentTool<typeof generationSchema, ImageToolDetails> {
+const recordSchema = Type.Object({  productName: Type.String({ description: "商品名称，用卖家消息里的原文", minLength: 1, maxLength: 200, pattern: "\\S" }),
+  type: typeSchema,
+  prompt: Type.String({ description: "生成这些图片时用的英文提示词，便于日后追溯", maxLength: 2000 }),
+  paths: Type.Array(Type.String({ description: "图片站内路径，如 /generated/xxx.png", minLength: 1, maxLength: 500 }), {
+    description: "要登记的图片路径列表",
+    minItems: 1,
+    maxItems: 10,
+  }),
+});
+
+type RenderParams = Static<typeof renderSchema>;
+type RecordParams = Static<typeof recordSchema>;
+
+function asType(value: Static<typeof typeSchema>): ProductImageType {
+  return value;
+}
+
+export function createRenderImageTool(): AgentTool<typeof renderSchema, RenderImageDetails> {
   return {
-    name: "generate_product_image",
+    name: IMAGE_TOOL_NAME,
     label: "生成商品图片",
     description:
-      "为指定商品生成商品主图或详情图序列（gpt-image-2），图片自动按目标市场审美生成，保存为草稿供卖家在商品详情页「图片」标签应用。卖家要求生成商品图、主图、详情图、产品图时必须调用本工具；productName 用卖家消息中的商品名称原文；type 按卖家要求选择 main 或 detail；detail 的 count 按卖家要求（未说明默认 3）。",
-    parameters: generationSchema,
-    async execute(_toolCallId, params: GenerationParams, signal?: AbortSignal): Promise<AgentToolResult<ImageToolDetails>> {
-      const details = await runProductImageGeneration({
-        productName: params.productName,
-        type: params.type,
-        count: params.count ?? 2,
-        shopId: deps.shopId,
-        generateText: deps.generateText,
+      "按你写好的英文提示词调用图片模型出图（可带参考图做变体），返回图片路径。提示词必须先由你按视觉 SOP 写好再传进来，本工具不做任何文案判断。出图后用 save_product_image_record 建档，卖家才能在产品页应用。",
+    parameters: renderSchema,
+    async execute(_toolCallId, params: RenderParams, signal?: AbortSignal): Promise<AgentToolResult<RenderImageDetails>> {
+      const details = await renderImages({
+        productName: params.productName.trim(),
+        type: asType(params.type),
+        prompt: params.prompt.trim(),
+        count: params.count ?? 1,
+        referencePublicPath: params.referencePath,
         signal,
       });
-      const incompleteNote = (details.incomplete ?? 0) > 0 ? `（另有 ${details.incomplete} 张因时间预算未完成，可再次要求继续生成）` : "";
+      const incompleteNote = details.incomplete > 0 ? `（另有 ${details.incomplete} 张因时间预算未完成，可再次要求继续生成）` : "";
       return {
         content: [{
           type: "text",
-          text: `已为「${details.productName}」生成 ${details.imageCount} 张${details.type === "main" ? "主图" : "详情图（含卖点与场景展示）"}${incompleteNote}，可在商品详情页「图片」标签查看并应用。`,
+          text: `已为「${details.productName}」生成 ${details.imageCount} 张图片${incompleteNote}。路径：${details.paths.join("、")}。需要出现在商品页请再调用 save_product_image_record。`,
         }],
         details,
       };
@@ -57,23 +109,53 @@ export function createProductImageTool(deps: ImageToolDeps): AgentTool<typeof ge
   };
 }
 
-export function createImageVariantTool(deps: ImageToolDeps): AgentTool<typeof variantSchema, ImageToolDetails> {
+export function createRunImageWorkflowTool(): AgentTool<typeof workflowSchema, ImageWorkflowDetails> {
   return {
-    name: "generate_image_variant",
-    label: "生成图片变体",
+    name: IMAGE_WORKFLOW_TOOL_NAME,
+    label: "按固定工作流出图",
     description:
-      "基于商品已有图片（默认取已应用的主图）生成不同背景或使用场景的变体，商品主体保持不变。卖家要求换背景、换场景、生成图片变体时必须调用本工具；productName 用卖家消息中的商品名称原文；instruction 填卖家描述的新背景或场景。",
-    parameters: variantSchema,
-    async execute(_toolCallId, params: VariantParams, signal?: AbortSignal): Promise<AgentToolResult<ImageToolDetails>> {
-      const details = await runImageVariantGeneration({
-        productName: params.productName,
-        instruction: params.instruction,
-        shopId: deps.shopId,
-        generateText: deps.generateText,
+      "用内置的固定提示词模板出图（换背景 / 换装 / 分镜草图 / 纯文生图），与 render_product_image 用的是同一个生图模型和接口，区别只是风格模板已固定，同款商品多次出图更统一。你只需提供英文 subject（商品主体）与 scene（场景），不要自己写完整提示词。换背景与换装必须提供商品原图（referencePath 或 referenceUrl），否则商品会变样。",
+    parameters: workflowSchema,
+    async execute(_toolCallId, params: WorkflowParams, signal?: AbortSignal): Promise<AgentToolResult<ImageWorkflowDetails>> {
+      const details = await runImageWorkflow({
+        workflow: params.workflow,
+        subject: params.subject,
+        scene: params.scene,
+        count: params.count ?? 1,
+        referencePublicPath: params.referencePath,
+        referenceUrl: params.referenceUrl,
         signal,
       });
+      const template = IMAGE_WORKFLOW_TEMPLATES[params.workflow];
+      const incompleteNote = details.incomplete > 0 ? `（另有 ${details.incomplete} 张未完成，可再次要求继续生成）` : "";
       return {
-        content: [{ type: "text", text: `已为「${details.productName}」生成 ${details.imageCount} 张图片变体，可在商品详情页「图片」标签查看并应用。` }],
+        content: [{
+          type: "text",
+          text: `已按「${template.label}」工作流生成 ${details.imageCount} 张图片${incompleteNote}。路径：${details.paths.join("、")}。需要作为商品图使用时再调用 save_product_image_record。`,
+        }],
+        details,
+      };
+    },
+  };
+}
+
+export function createSaveImageRecordTool(deps: { shopId: string }): AgentTool<typeof recordSchema, SavedImageRecordDetails> {
+  return {
+    name: IMAGE_RECORD_TOOL_NAME,
+    label: "登记商品图片",
+    description:
+      "把已生成的图片文件登记到商品图片档案（草稿状态），卖家可在商品详情页「图片」标签查看并应用。必须在图片生成成功后调用，否则图片不会出现在商品页。",
+    parameters: recordSchema,
+    async execute(_toolCallId, params: RecordParams): Promise<AgentToolResult<SavedImageRecordDetails>> {
+      const details = await saveGeneratedImageRecords({
+        shopId: deps.shopId,
+        productName: params.productName.trim(),
+        type: asType(params.type),
+        prompt: params.prompt.trim(),
+        paths: params.paths.map((path) => path.trim()).filter((path) => path !== ""),
+      });
+      return {
+        content: [{ type: "text", text: `已登记 ${details.imageIds.length} 张图片到商品档案，可在商品详情页「图片」标签应用。` }],
         details,
       };
     },

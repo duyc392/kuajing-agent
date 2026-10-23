@@ -96,3 +96,19 @@ export function refineStatusOf(input: { netProfit: number; netMarginRate: number
 export function mockVideoUrlOf(candidateId: string): string {
   return `https://mock-videos.tiktok.local/${encodeURIComponent(candidateId)}.mp4`;
 }
+
+// 候选品综合打分权重（合计 1）：由 lib/product-score 使用，阈值与费率同源于本文件，避免前后端口径漂移。
+export const SCORE_WEIGHTS = {
+  margin: 0.35,
+  growth: 0.25,
+  sales: 0.2,
+  competition: 0.1,
+  priceBand: 0.1,
+} as const;
+
+// 打分归一化基准：销量按 10000 件封顶、增速按 500% 封顶、竞争度按 200 家店铺封顶、价格带取默认区间。
+export const SCORE_BASELINES = {
+  monthlySalesCap: 10_000,
+  weeklyGrowthCap: 500,
+  shopCountCap: 200,
+} as const;

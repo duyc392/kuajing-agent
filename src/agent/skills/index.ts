@@ -1,15 +1,26 @@
-// 用途：技能提示词注入（PRD 故事 46 复用 + 故事 47 启用/禁用）：读取已启用技能并按常驻/按需分成两段——
-// 常驻技能全文注入（始终生效的偏好规则），按需技能只注入「名称：适用说明」目录，完整规则由模型经 load_skill 工具按需取回。
-// 技能正文与名称属于卖家沉淀的数据，先转义再进数据区，防止伪造结束标记注入指令。
+// 用途：技能注入与加载：把「内置业务 SOP（数据）」与「卖家自定义技能（数据库 + skills/*.md）」合并后供主 Agent 使用。
+// 常驻技能全文注入；按需技能与内置 SOP 只注入目录，完整内容由模型经 load_skill 取回。
+// 注意：Skill 是上下文数据，没有执行逻辑——真正调工具、写库的是主 Agent。
 import { escapePromptData } from "@/agent/prompts/escape";
+import { BUILTIN_SKILLS, builtinCatalogLines, findBuiltinSkill, renderAgentSkill } from "@/agent/skills/registry";
 import { MAX_ENABLED_SKILLS } from "@/config/skills";
 import { listEnabledSkills } from "@/services/skills.service";
+import { getEnabledSkillsByNames } from "@/services/skill-lookup.service";
 
 export interface SkillsPromptBlock {
   /** 常驻技能行（含全文），注入后每轮直接生效 */
   resident: string[];
   /** 按需技能目录行（仅名称与适用说明），完整规则需模型调 load_skill 获取 */
   onDemand: string[];
+  /** 内置业务 SOP 目录行 */
+  builtinCatalog: string[];
+}
+
+export interface LoadedSkill {
+  name: string;
+  source: "builtin" | "seller";
+  content: string;
+  tools: string[];
 }
 
 export async function loadSkillsBlock(): Promise<SkillsPromptBlock> {
@@ -21,11 +32,37 @@ export async function loadSkillsBlock(): Promise<SkillsPromptBlock> {
     onDemand: skills
       .filter((skill) => !skill.alwaysApply)
       .map((skill) => `- 【${escapePromptData(skill.name)}】${escapePromptData(skill.description === "" ? "（无说明）" : skill.description)}`),
+    builtinCatalog: builtinCatalogLines(),
   };
 }
 
-// 生成流水线（文案/视频脚本/直播脚本）注入用的常驻规则行：只取常驻技能——生成调用是单次模型调用、无工具循环，
-// 按需技能无法被生成模型加载，其定位就是省 token 的对话内按需内容。
+// 生成流水线（选品工作台直调模型）注入用的常驻规则行：只取常驻技能——单次模型调用没有工具循环，按需技能加载不了。
 export async function loadResidentSkillRules(): Promise<string[]> {
   return (await loadSkillsBlock()).resident;
 }
+
+// 按名加载：内置 SOP 优先（ID 或中文名精确匹配），未命中再查卖家已启用技能。
+export async function loadSkillsByNames(names: string[]): Promise<{ found: LoadedSkill[]; missing: string[] }> {
+  const found: LoadedSkill[] = [];
+  const missing: string[] = [];
+  const sellerNames: string[] = [];
+  const requested = names.map((name) => name.trim()).filter((name) => name !== "");
+  for (const name of requested) {
+    const builtin = findBuiltinSkill(name);
+    if (builtin) {
+      found.push({ name: builtin.name, source: "builtin", content: renderAgentSkill(builtin).join("\n"), tools: builtin.tools });
+    } else {
+      sellerNames.push(name);
+    }
+  }
+  if (sellerNames.length > 0) {
+    const seller = await getEnabledSkillsByNames(sellerNames);
+    for (const skill of seller.found) {
+      found.push({ name: skill.name, source: "seller", content: skill.content, tools: [] });
+    }
+    missing.push(...seller.missing);
+  }
+  return { found, missing };
+}
+
+export { BUILTIN_SKILLS };

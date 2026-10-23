@@ -3,7 +3,7 @@
 // 下载地址做 SSRF 防护（仅 https、拒绝回环/私网/链路本地、重定向后复查）、大小与魔数校验；底层错误翻译成中文业务错误，原始错误只进服务端日志。
 import { lookup } from "dns/promises";
 import { AppError } from "@/lib/errors";
-import { detectImageMime, IMAGE_MAX_BYTES } from "@/lib/image-bytes";
+import { detectImageMime, IMAGE_MAX_BYTES, type AllowedImageMime } from "@/lib/image-bytes";
 
 export interface ImageApiSettings {
   apiKey: string;
@@ -13,7 +13,7 @@ export interface ImageApiSettings {
 
 export interface GeneratedImageBytes {
   bytes: Buffer;
-  mimeType: string;
+  mimeType: AllowedImageMime;
 }
 
 const IMAGE_TIMEOUT_MS = 90_000;
@@ -62,7 +62,7 @@ async function isUnsafeImageUrl(url: URL): Promise<boolean> {
 }
 
 // 校验下载到的字节：大小上限 + 魔数识别，返回真实 MIME；不合格抛 IMAGE_FORMAT。
-function validateImageBytes(bytes: Buffer): { bytes: Buffer; mimeType: string } {
+function validateImageBytes(bytes: Buffer): { bytes: Buffer; mimeType: AllowedImageMime } {
   if (bytes.length === 0 || bytes.length > IMAGE_MAX_BYTES) {
     throw new AppError("图片文件为空或超过 10MB 上限", "IMAGE_FORMAT", 502);
   }
@@ -99,8 +99,7 @@ async function fetchWithManualRedirects(url: string, signal?: AbortSignal): Prom
   throw new AppError("图片下载重定向次数过多，已拒绝", "IMAGE_UNSAFE_URL", 502);
 }
 
-async function downloadImageBytes(url: string, signal?: AbortSignal): Promise<GeneratedImageBytes> {
-  let lastError: unknown = null;
+async function downloadImageBytes(url: string, signal?: AbortSignal): Promise<GeneratedImageBytes> {  let lastError: unknown = null;
   for (let attempt = 0; attempt < DOWNLOAD_ATTEMPTS; attempt++) {
     try {
       const response = await fetchWithManualRedirects(url, signal);
@@ -120,6 +119,11 @@ async function downloadImageBytes(url: string, signal?: AbortSignal): Promise<Ge
   }
   if (lastError instanceof AppError) throw lastError;
   throw new AppError("图片文件下载失败，请重试", "IMAGE_DOWNLOAD", 502);
+}
+
+// 下载并校验远程图片（复用同一套 SSRF 防护与魔数校验）：供参考图来自商品链接（而非站内路径）时使用。
+export function downloadRemoteImage(url: string, signal?: AbortSignal): Promise<GeneratedImageBytes> {
+  return downloadImageBytes(url, signal);
 }
 
 // 响应 data 项 → 图片字节：url 形态下载、b64_json 形态解码（同样过大小与魔数校验）。

@@ -29,6 +29,7 @@ model Shop {
   publishedVideos    PublishedVideo[]
   videoReviews       VideoReview[]
   shotRequirements   ShotRequirement[]
+  snapshots          WorkflowSnapshot[]
 }
 
 // 商品：属于某个店铺，支持变体。
@@ -302,4 +303,20 @@ model ShotRequirement {
   updatedAt         DateTime @updatedAt
 
   @@unique([shopId, productId, shotCode])
+}
+
+// 工作流阶段快照：Agent 在选品、痛点提炼、分镜、脚本、归档各阶段主动调用 save_snapshot 落库；
+// stage + version 唯一，rollback 读取同 stage 的上一版，支持"只重写某一镜"的局部重做。
+// payload 是阶段产物的 JSON 文本（结构由对应 Skill SOP 约定，服务层不解释内容）。
+model WorkflowSnapshot {
+  id        String   @id @default(cuid())
+  shopId    String // 隔离键
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  stage     String // selection / video-deconstruction / audience-insights / storyboard / script / archive
+  version   Int // 同店同阶段内自增，从 1 开始
+  payload   String // 阶段产物 JSON 文本
+  createdAt DateTime @default(now())
+
+  @@unique([shopId, stage, version])
+  @@index([shopId, stage, createdAt])
 }

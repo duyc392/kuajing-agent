@@ -50,6 +50,8 @@ async function toView(skill: Skill): Promise<SkillView> {
     content: await readSkillContent(skill.filename),
     alwaysApply: skill.alwaysApply,
     enabled: skill.enabled,
+    builtin: false,
+    editable: true,
     createdAt: skill.createdAt.toISOString(),
     updatedAt: skill.updatedAt.toISOString(),
   };

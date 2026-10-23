@@ -1,8 +1,8 @@
-// 用途：选品调研工具卡（PRD 故事 13-15 与故事 8 工具调用可见）：市场分析 / 选品推荐 / 竞品分析的结构化报告展示。
-// 运行中/失败/格式异常统一走 ToolStatusCard，完成态渲染四维度结论、推荐项或竞品对比六要素；缺失字段回退到格式异常卡。
+// 用途：报告卡（present_report 的投影结果）：市场分析 / 选品推荐 / 竞品拆解三种结构化报告展示。
+// 运行中/失败/格式异常统一走 ToolStatusCard；结论由主 Agent 按 SOP 产出，工具只负责校验与透传。
 "use client";
 
-import type { CompetitorDetails, MarketAnalysisDetails, RecommendationDetails, ToolCallRecord } from "@/types";
+import type { CompetitorDetails, MarketAnalysisDetails, PresentReportDetails, RecommendationDetails, ToolCallRecord } from "@/types";
 import ToolStatusCard, { cardStyle } from "@/components/chat/tool-status-card";
 
 function DimensionRow({ label, value }: { label: string; value: string }) {
@@ -81,4 +81,18 @@ export function CompetitorCard({ call }: { call: ToolCallRecord }) {
       <DimensionRow label="建议的差异化方向" value={details.differentiation} />
     </div>
   );
+}
+
+// present_report 的统一入口：按 kind 分发到对应卡片；结构不符时回退格式异常卡。
+export function PresentReportCard({ call }: { call: ToolCallRecord }) {
+  const details = call.details as PresentReportDetails | undefined;
+  if (!details || typeof details !== "object" || !("kind" in details)) {
+    if (call.status === "running") return <ToolStatusCard label={call.label} status="running" />;
+    if (call.status === "error") return <ToolStatusCard label={call.label} status="error" error={call.error} />;
+    return <ToolStatusCard label={call.label} status="invalid" />;
+  }
+  const shaped = { ...call, details: details.data };
+  if (details.kind === "market") return <MarketAnalysisCard call={shaped} />;
+  if (details.kind === "recommendation") return <RecommendationCard call={shaped} />;
+  return <CompetitorCard call={shaped} />;
 }

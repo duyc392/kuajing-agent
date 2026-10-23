@@ -1,6 +1,6 @@
 // 用途：直播脚本业务域类型（PRD 故事 28 与页面清单第 5 项）：流程阶段结构（开场/讲解/互动/促销节奏）、
 // 创建与修改契约、列表/详情视图与聊天工具结果数据。数据库时长存秒，界面与模型交互用分钟。
-export const LIVE_SCRIPT_TOOL_NAME = "generate_live_script";
+export const LIVE_SCRIPT_TOOL_NAME = "save_live_script";
 
 // 单个流程阶段：阶段名（含开场/讲解/互动/促销等）、时长（分钟）、阶段目标、关键话术（目标市场语言）。
 export interface LiveSegment {

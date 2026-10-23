@@ -1,10 +1,10 @@
 // 用途：执行一轮 Agent 对话：调用 Pi 运行"思考 → 回答"循环，流式回调增量文本，注入业务工具并收集工具调用记录，结束后返回完整回复与工具记录。
 import type { Agent, AgentMessage } from "@earendil-works/pi-agent-core";
 import { createAgent } from "@/agent/core";
-import { generateTextOnce, toFriendlyLlmError } from "@/agent/generate";
+import { toFriendlyLlmError } from "@/agent/generate";
 import { buildAgentTools } from "@/agent/tools";
 import { AppError } from "@/lib/errors";
-import type { GenerateTextFn, HistoryItem, ToolCallRecord } from "@/types";
+import type { HistoryItem, ToolCallRecord } from "@/types";
 
 export interface RunAgentTurnParams {
   systemPrompt: string;
@@ -125,33 +125,34 @@ async function promptOnce(agent: Agent, content: AgentMessage): Promise<void> {
   }
 }
 
-// 选品意图 → 必须调用的工具（PRD 故事 13-15 的兜底约束）：
-// 模型可能口头声称"基于 FastMoss 数据"却不调用工具，这里用确定性规则识别意图，把工具调用变成硬性要求。
-const SELECTION_INTENT_RULES: Array<{ tool: string; pattern: RegExp }> = [
-  { tool: "analyze_market", pattern: /市场.{0,6}(分析|调研|机会|容量|规模|空间|前景|行情)|选品调研|品类.{0,6}(分析|机会)/ },
-  { tool: "recommend_products", pattern: /选品方向|选品推荐|选品建议|跟卖|蓝海|推荐.{0,8}(品类|选品|方向|品)/ },
-  { tool: "analyze_competitor", pattern: /竞品|同行|对手店铺|竞对|对标|拆解/ },
+// 意图兜底：这些意图必须真正调用对应工具，防止模型口头声称"基于数据"却没有取数/落库。
+// 键为工具名，值为识别该意图的正则；命中后若本轮没调过该工具，注入指令再跑一轮。
+const REQUIRED_TOOL_RULES: Array<{ tool: string; pattern: RegExp; label: string }> = [
+  { tool: "fetch_market_data", pattern: /市场.{0,6}(分析|调研|机会|容量|规模|空间|前景|行情)|选品方向|选品推荐|品类.{0,6}(分析|机会)/, label: "大盘数据" },
+  { tool: "fetch_competitor_shop", pattern: /竞品|同行|对手店铺|竞对|对标/, label: "竞品店铺数据" },
+  { tool: "fetch_video_source", pattern: /拉片|拆解.{0,4}(视频|爆款)|为什么.{0,2}火/, label: "竞品视频" },
+  { tool: "fetch_product_reviews", pattern: /差评|评论分析|痛点提炼|用户评价/, label: "商品评论" },
 ];
 
-function requiredSelectionTool(content: string): string | null {
-  for (const rule of SELECTION_INTENT_RULES) {
-    if (rule.pattern.test(content)) return rule.tool;
+function requiredTool(content: string): { tool: string; label: string } | null {
+  for (const rule of REQUIRED_TOOL_RULES) {
+    if (rule.pattern.test(content)) return { tool: rule.tool, label: rule.label };
   }
   return null;
 }
 
-// 选品意图兜底：该用工具却没有工具调用时，注入明确指令再跑一轮；仍不调用则报错，绝不保存"编造的数据结论"。
-async function enforceSelectionTool(agent: Agent, content: string, toolCalls: ToolCallRecord[]): Promise<void> {
-  const required = requiredSelectionTool(content);
+// 意图兜底：该用工具却没有工具调用时，注入明确指令再跑一轮；仍不调用则报错，绝不保存"编造的数据结论"。
+async function enforceRequiredTool(agent: Agent, content: string, toolCalls: ToolCallRecord[]): Promise<void> {
+  const required = requiredTool(content);
   if (required === null) return;
-  if (toolCalls.some((call) => call.toolName === required)) return;
+  if (toolCalls.some((call) => call.toolName === required.tool)) return;
   await promptOnce(agent, {
     role: "user",
-    content: `必须调用 ${required} 工具获取 FastMoss 数据后再回答，不得编造任何数据结论。`,
+    content: `必须调用 ${required.tool} 获取${required.label}后再回答，不得编造任何数据结论。`,
     timestamp: Date.now(),
   });
-  if (toolCalls.some((call) => call.toolName === required)) return;
-  throw new AppError("本次请求需要 FastMoss 选品数据，但没有成功获取。请明确说出要分析的品类或竞品店铺名称后重试。", "SELECTION_TOOL_REQUIRED", 422);
+  if (toolCalls.some((call) => call.toolName === required.tool)) return;
+  throw new AppError(`本次请求需要${required.label}，但没有成功获取。请补充必要信息后重试。`, "TOOL_REQUIRED", 422);
 }
 
 export async function runAgentTurn(params: RunAgentTurnParams): Promise<RunAgentTurnResult> {
@@ -164,15 +165,7 @@ export async function runAgentTurn(params: RunAgentTurnParams): Promise<RunAgent
     systemPrompt: params.systemPrompt,
     messages: initialMessages,
   });
-  const generateText: GenerateTextFn = Object.assign(
-    (systemPrompt: string, userPrompt: string, signal?: AbortSignal) =>
-      generateTextOnce({ agent, systemPrompt, userPrompt, signal }),
-    { modelId: agent.state.model.id },
-  );
-  agent.state.tools = buildAgentTools({
-    shopId: params.shopId,
-    generateText,
-  });
+  agent.state.tools = buildAgentTools({ shopId: params.shopId });
   const labels = new Map(agent.state.tools.map((tool) => [tool.name, tool.label]));
   const argsByCall = new Map<string, unknown>();
   const toolCalls: ToolCallRecord[] = [];
@@ -182,8 +175,8 @@ export async function runAgentTurn(params: RunAgentTurnParams): Promise<RunAgent
   params.signal?.addEventListener("abort", onOuterAbort);
   try {
     await promptOnce(agent, { role: "user", content: params.content, timestamp: Date.now() });
-    // 选品意图兜底：需要 FastMoss 数据却未调用对应工具时，注入指令重试一轮，仍失败则明确报错。
-    await enforceSelectionTool(agent, params.content, toolCalls);
+    // 意图兜底：需要真实数据却未调用对应工具时，注入指令重试一轮，仍失败则明确报错。
+    await enforceRequiredTool(agent, params.content, toolCalls);
   } finally {
     params.signal?.removeEventListener("abort", onOuterAbort);
   }

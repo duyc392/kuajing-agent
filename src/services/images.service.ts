@@ -1,6 +1,5 @@
-// 用途：商品图片档案业务逻辑（PRD 数据对象 ProductImage）：按店铺隔离的列表 / 批量建档 / 应用标记 / 删除。
-// 图片文件本体在 public/generated/，本服务只管理档案记录；删除记录时尽力清理磁盘文件。
-// 生成动作在 agent/image-flow（对话工具），不经过本服务。
+// 图片档案业务逻辑（PRD 数据对象 ProductImage）：按店铺隔离的列表 / 批量建档 / 应用标记 / 删除。
+// 图片文件本体在 public/generated/；本服务只管理档案记录，生成动作在 render_product_image 工具（services/image-render）。
 import { promises as fs } from "fs";
 import path from "path";
 import crypto from "crypto";
