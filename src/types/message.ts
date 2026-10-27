@@ -23,6 +23,8 @@ export interface MessageView {
   toolCalls?: ToolCallRecord[];
 }
 
+export type ChatSendOutcome = "completed" | "rejected" | "uncertain" | "cancelled" | "blocked";
+
 export interface SendMessageResult {
   userMessage: MessageView;
   agentMessage: MessageView;

@@ -5,6 +5,15 @@ export interface ConversationSummary {
   updatedAt: string;
 }
 
+// 既有对话不传 initialMessages，默认读取历史；新建（含空新建）显式传 []。
+// 首条自动发送独立于历史种子，仅在 user SSE 或历史核对确认已落库后清理。
+export interface ConversationInitialization {
+  initialMessages?: import("./message").MessageView[];
+  autoSendMessage?: string;
+}
+
+export type SelectConversation = (id: string, initialization?: ConversationInitialization) => void;
+
 export interface ConversationCreateInput {
   shopId: string;
   title?: string;

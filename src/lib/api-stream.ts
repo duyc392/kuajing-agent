@@ -1,79 +1,99 @@
-// 用途：前端统一流式请求封装：组件经它调用返回 SSE 的 /api/* 接口，解析 data: 事件行并回调，禁止在组件里裸写 fetch。
+// 用途：聊天 POST SSE；连接与流中空闲独立计时，取消/超时绝不自动重发。
+import { CHAT_STREAM_TIMEOUTS } from "@/config/chat";
 import type { ChatStreamEvent } from "@/types";
 
-// 客户端空闲超时：一轮回复含慢工具（生图 60-90 秒），取与服务端主回合硬超时一致的 180 秒；
-// 计时只重置于"收到任意字节"，连接层卡死时由这里兜底报错，而不是永远挂起。
-const IDLE_TIMEOUT_MS = 180_000;
+interface StreamTimeouts { connectionMs: number; idleMs: number }
 
-interface SseParseResult {
-  events: ChatStreamEvent[];
-  rest: string;
+export class ChatStreamError extends Error {
+  constructor(message: string, public delivery: "rejected" | "uncertain" = "uncertain") {
+    super(message);
+    this.name = "ChatStreamError";
+  }
 }
 
-// 解析一段 SSE 字节：切出完整事件并返回剩余半截缓冲；data 行 JSON 损坏抛中文错误（静默丢弃会丢失终止事件）。
-function parseSseChunk(buffer: string, chunk: string): SseParseResult {
-  const parts = (buffer + chunk).split("\n\n");
+function parseSseChunk(buffer: string, chunk: string): { events: ChatStreamEvent[]; rest: string } {
+  const parts = (buffer + chunk).replace(/\r\n/g, "\n").split("\n\n");
   const rest = parts.pop() ?? "";
   const events: ChatStreamEvent[] = [];
   for (const part of parts) {
     if (!part.startsWith("data: ")) continue;
-    try {
-      events.push(JSON.parse(part.slice(6)) as ChatStreamEvent);
-    } catch {
-      throw new Error("对话流数据格式异常，请重试");
-    }
+    try { events.push(JSON.parse(part.slice(6)) as ChatStreamEvent); }
+    catch { throw new ChatStreamError("对话流数据格式异常，请重新加载历史确认送达状态"); }
   }
   return { events, rest };
 }
 
-export async function streamChatRequest(
-  path: string,
-  body: unknown,
-  onEvent: (event: ChatStreamEvent) => void,
-  signal?: AbortSignal,
-): Promise<void> {
-  const response = await fetch(path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    signal,
-  });
-  if (!response.ok || !response.body) {
-    const data: unknown = await response.json().catch(() => ({}));
-    const message = (data as { error?: string }).error ?? "请求失败，请稍后重试";
-    throw new Error(message);
-  }
+function createStreamControl(signal: AbortSignal | undefined, timeouts: StreamTimeouts) {
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let rejectWait: (error: Error) => void = () => undefined;
+  const failure = new Promise<never>((_resolve, reject) => { rejectWait = reject; });
+  const stop = (error: Error) => { rejectWait(error); controller.abort(); };
+  const onAbort = () => stop(new DOMException("请求已取消", "AbortError"));
+  const arm = (ms: number, message: string) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => stop(new ChatStreamError(message)), ms);
+  };
+  signal?.addEventListener("abort", onAbort, { once: true });
+  arm(timeouts.connectionMs, "聊天连接等待超时，请重新加载历史确认送达状态");
+  if (signal?.aborted) onAbort();
+  return {
+    signal: controller.signal,
+    wait: <T>(operation: Promise<T>): Promise<T> => Promise.race([operation, failure]),
+    idle: () => arm(timeouts.idleMs, "AI 服务长时间无响应，请重新加载历史"),
+    dispose: () => { clearTimeout(timer); signal?.removeEventListener("abort", onAbort); controller.abort(); },
+  };
+}
+
+type StreamControl = ReturnType<typeof createStreamControl>;
+
+async function consumeStream(response: Response, control: StreamControl, onEvent: (event: ChatStreamEvent) => void): Promise<void> {
+  if (!response.body) throw new ChatStreamError("对话流为空，请重新加载历史");
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
-  let terminated = false; // 是否已收到业务终止事件（done / error）
-  let timedOut = false;
-  let idleTimer: ReturnType<typeof setTimeout> | undefined;
-  const resetIdleTimer = () => {
-    if (idleTimer) clearTimeout(idleTimer);
-    idleTimer = setTimeout(() => {
-      timedOut = true;
-      void reader.cancel().catch(() => undefined);
-    }, IDLE_TIMEOUT_MS);
-  };
   try {
-    resetIdleTimer();
     while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      resetIdleTimer();
-      const { events, rest } = parseSseChunk(buffer, decoder.decode(value, { stream: true }));
-      buffer = rest;
-      for (const event of events) {
-        if (event.type === "done" || event.type === "error") terminated = true;
+      const { done, value } = await control.wait(reader.read());
+      if (done) throw new ChatStreamError("回复中断，请重新加载历史；不要直接重复发送");
+      control.idle();
+      const parsed = parseSseChunk(buffer, decoder.decode(value, { stream: true }));
+      buffer = parsed.rest;
+      for (const event of parsed.events) {
+        if (control.signal.aborted) throw new DOMException("请求已取消", "AbortError");
         onEvent(event);
+        if (event.type === "error") throw new ChatStreamError(event.error);
+        if (event.type === "done") return;
       }
     }
-    if (timedOut) throw new Error("AI 服务长时间无响应，请稍后重试");
-    // 流结束但未收到终止事件：连接被中途掐断，按中断报错（恢复走历史加载，不自动重发，避免重复计费）。
-    if (!terminated) throw new Error("回复中断，请稍后重试；已生成的内容会保存在对话记录里");
   } finally {
-    if (idleTimer) clearTimeout(idleTimer);
     void reader.cancel().catch(() => undefined);
+  }
+}
+
+async function checkResponse(response: Response, control: StreamControl): Promise<void> {
+  if (response.ok) return;
+  const data: unknown = await control.wait(response.json().catch(() => null));
+  const message = data && typeof data === "object" && "error" in data && typeof data.error === "string"
+    ? data.error : "请求失败，请稍后重试";
+  throw new ChatStreamError(message, response.status >= 400 && response.status < 500 ? "rejected" : "uncertain");
+}
+
+export async function streamChatRequest(
+  path: string, body: unknown, onEvent: (event: ChatStreamEvent) => void,
+  signal?: AbortSignal, timeouts: StreamTimeouts = CHAT_STREAM_TIMEOUTS,
+): Promise<void> {
+  if (signal?.aborted) throw new DOMException("请求已取消", "AbortError");
+  const control = createStreamControl(signal, timeouts);
+  try {
+    const response = await control.wait(fetch(path, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body), signal: control.signal,
+    }));
+    await checkResponse(response, control);
+    control.idle();
+    await consumeStream(response, control, onEvent);
+  } finally {
+    control.dispose();
   }
 }

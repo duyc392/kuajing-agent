@@ -11,10 +11,10 @@ import ErrorMessage from "@/components/shared/error-message";
 import Loading from "@/components/shared/loading";
 import WorkspaceIcon from "@/components/shared/workspace-icon";
 import { formatRelativeTime } from "@/lib/time";
-import type { ConversationSummary } from "@/types";
+import type { ConversationSummary, SelectConversation } from "@/types";
 
 interface WorkspaceHomeProps {
-  onSelect: (id: string, content?: string) => void;
+  onSelect: SelectConversation;
   refreshSignal: number;
 }
 

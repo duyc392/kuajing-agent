@@ -3,12 +3,17 @@ import type { Agent, AgentMessage } from "@earendil-works/pi-agent-core";
 import { createAgent } from "@/agent/core";
 import { toFriendlyLlmError } from "@/agent/generate";
 import { buildAgentTools } from "@/agent/tools";
+import { prepareConversationContext } from "@/agent/context";
+import { assertContextGuard, installContextGuard } from "@/agent/context-guard";
 import { AppError } from "@/lib/errors";
 import type { HistoryItem, ToolCallRecord } from "@/types";
 
 export interface RunAgentTurnParams {
   systemPrompt: string;
-  history: HistoryItem[];
+  history?: HistoryItem[];
+  preparedAgent?: Agent;
+  conversationId?: string;
+  currentMessageId?: string;
   content: string;
   shopId: string;
   signal?: AbortSignal;
@@ -23,6 +28,7 @@ export interface RunAgentTurnParams {
 export interface RunAgentTurnResult {
   text: string;
   toolCalls: ToolCallRecord[];
+  history: HistoryItem[];
 }
 
 function toAgentMessages(history: HistoryItem[]): AgentMessage[] {
@@ -120,6 +126,7 @@ async function promptOnce(agent: Agent, content: AgentMessage): Promise<void> {
         }, PROMPT_TIMEOUT_MS);
       }),
     ]);
+    assertContextGuard(agent);
   } finally {
     if (timer) clearTimeout(timer);
   }
@@ -155,17 +162,47 @@ async function enforceRequiredTool(agent: Agent, content: string, toolCalls: Too
   throw new AppError(`本次请求需要${required.label}，但没有成功获取。请补充必要信息后重试。`, "TOOL_REQUIRED", 422);
 }
 
-export async function runAgentTurn(params: RunAgentTurnParams): Promise<RunAgentTurnResult> {
-  const initialMessages = toAgentMessages(params.history);
-  // 临时上下文垫在历史末尾：模型视角为「…历史 → 本轮参考资料 → 本轮问题」，不污染系统提示词前缀。
-  if (params.postHistoryContext) {
-    initialMessages.push({ role: "user", content: params.postHistoryContext, timestamp: Date.now() });
+function assertNotAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw new AppError("请求已取消", "REQUEST_ABORTED", 499);
+}
+
+async function prepareTurnAgent(params: RunAgentTurnParams): Promise<{ agent: Agent; history: HistoryItem[] }> {
+  assertNotAborted(params.signal);
+  const agent = params.preparedAgent ?? await createAgent({ systemPrompt: params.systemPrompt, messages: [] });
+  agent.state.systemPrompt = params.systemPrompt;
+  agent.state.tools = buildAgentTools({ shopId: params.shopId, conversationId: params.conversationId, beforeMessageId: params.currentMessageId });
+  // 外部注入的测试Agent也必须接受同样的工具轮容量保护。
+  if (params.preparedAgent) installContextGuard(agent);
+  let history = params.history ?? [];
+  let recent = history;
+  if (params.conversationId && params.currentMessageId) {
+    const context = await prepareConversationContext({ agent, conversationId: params.conversationId,
+      beforeMessageId: params.currentMessageId, shopId: params.shopId, content: params.content,
+      postHistoryContext: params.postHistoryContext, signal: params.signal });
+    history = context.history;
+    recent = context.recent;
   }
-  const agent = await createAgent({
-    systemPrompt: params.systemPrompt,
-    messages: initialMessages,
-  });
-  agent.state.tools = buildAgentTools({ shopId: params.shopId });
+  const messages = toAgentMessages(history);
+  if (params.postHistoryContext) messages.push({ role: "user", content: params.postHistoryContext, timestamp: Date.now() });
+  agent.state.messages = messages;
+  assertNotAborted(params.signal);
+  // 记忆提取只消费最近原文，不能把有损摘要误当成卖家在最近几轮明确表达的原话。
+  return { agent, history: recent };
+}
+
+function turnText(agent: Agent): string {
+  const finalMessage = [...agent.state.messages].reverse().find((message) => message.role === "assistant");
+  if (finalMessage?.role === "assistant" && finalMessage.stopReason === "error") {
+    console.error("[agent] 模型调用失败:", finalMessage.errorMessage);
+    throw new AppError(toFriendlyLlmError(finalMessage.errorMessage), "LLM_ERROR", 502);
+  }
+  const text = extractText(agent.state.messages);
+  if (!text) throw new AppError("模型没有返回任何内容，请重试", "LLM_EMPTY", 502);
+  return text;
+}
+
+export async function runAgentTurn(params: RunAgentTurnParams): Promise<RunAgentTurnResult> {
+  const { agent, history } = await prepareTurnAgent(params);
   const labels = new Map(agent.state.tools.map((tool) => [tool.name, tool.label]));
   const argsByCall = new Map<string, unknown>();
   const toolCalls: ToolCallRecord[] = [];
@@ -174,19 +211,13 @@ export async function runAgentTurn(params: RunAgentTurnParams): Promise<RunAgent
   const onOuterAbort = () => agent.abort();
   params.signal?.addEventListener("abort", onOuterAbort);
   try {
+    assertNotAborted(params.signal);
     await promptOnce(agent, { role: "user", content: params.content, timestamp: Date.now() });
+    assertNotAborted(params.signal);
     // 意图兜底：需要真实数据却未调用对应工具时，注入指令重试一轮，仍失败则明确报错。
     await enforceRequiredTool(agent, params.content, toolCalls);
   } finally {
     params.signal?.removeEventListener("abort", onOuterAbort);
   }
-  const finalMessage = [...agent.state.messages].reverse().find((message) => message.role === "assistant");
-  if (finalMessage && finalMessage.role === "assistant" && finalMessage.stopReason === "error") {
-    // 原始错误只进服务端日志；前端只收到中文话术（PRD：断网显示"无法连接 AI 服务"），不透传服务商英文细节。
-    console.error("[agent] 模型调用失败:", finalMessage.errorMessage);
-    throw new AppError(toFriendlyLlmError(finalMessage.errorMessage), "LLM_ERROR", 502);
-  }
-  const text = extractText(agent.state.messages);
-  if (text === "") throw new AppError("模型没有返回任何内容，请重试", "LLM_EMPTY", 502);
-  return { text, toolCalls };
+  return { text: turnText(agent), toolCalls, history };
 }

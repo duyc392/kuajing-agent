@@ -17,7 +17,7 @@ test("消息：自动命名、序列化工具记录、历史与归属校验", as
   const { prisma, url, dbPath } = createTempDb("messages-test");
   process.env.DATABASE_URL = url;
   try {
-    const { recordAgentMessage, recordUserMessage, listMessages, getTurnHistory, updateMessageToolCall } = await import("@/services/messages.service");
+    const { recordAgentMessage, recordUserMessage, listMessages, updateMessageToolCall } = await import("@/services/messages.service");
     const { createConversation } = await import("@/services/conversations.service");
     const shop = await prisma.shop.create({ data: { name: "店铺 A", market: "美国" } });
     const other = await prisma.shop.create({ data: { name: "店铺 B", market: "英国" } });
@@ -34,10 +34,13 @@ test("消息：自动命名、序列化工具记录、历史与归属校验", as
     assert.deepEqual(messages.map((message) => message.role), ["user", "agent"]);
     assert.equal(messages[1].toolCalls?.[0].proposalState, "pending");
 
-    const history = await getTurnHistory({ conversationId: conversation.id, shopId: shop.id, before: new Date(Date.now() + 1000).toISOString() });
-    assert.equal(history.items.length, 2);
-    assert.equal(history.dropped.length, 0);
-    assert.ok(history.items[1].content.includes("本轮已调用工具：沉淀技能"));
+    const { getContextSnapshot } = await import("@/services/conversation-context.service");
+    const current = await recordUserMessage({ conversationId: conversation.id, shopId: shop.id, content: "继续" });
+    const history = await getContextSnapshot({ conversationId: conversation.id, shopId: shop.id, beforeMessageId: current.id });
+    assert.equal(history.messages.length, 2);
+    assert.equal(history.summary, null);
+    assert.equal(history.messages[1].content, "好的");
+    assert.ok(history.messages[1].toolCalls?.includes("propose_skill"));
 
     const updated = await updateMessageToolCall({ messageId: agent.id, shopId: shop.id, toolCallId: "call-1", proposalState: "confirmed", skillId: "skill-1" });
     assert.equal(updated.toolCalls?.[0].proposalState, "confirmed");

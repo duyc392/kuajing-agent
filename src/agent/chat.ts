@@ -5,12 +5,11 @@ import { AppError, ValidationError } from "@/lib/errors";
 import { MAX_CONTEXT_MEMORIES } from "@/config/memory";
 import { getShop } from "@/services/shops.service";
 import { listMemories } from "@/services/memory.service";
-import { getTurnHistory, recordAgentMessage, recordUserMessage, type TurnHistory } from "@/services/messages.service";
+import { recordAgentMessage, recordUserMessage } from "@/services/messages.service";
 import { runAgentTurn } from "@/agent/execute";
 import { createAgent } from "@/agent/core";
-import { callWithGenerationAudit, generateTextOnce } from "@/agent/generate";
+import { generateTextOnce } from "@/agent/generate";
 import { extractMemories } from "@/agent/memory/extractor";
-import { escapePromptData } from "@/agent/prompts/escape";
 import { buildSystemPrompt } from "@/agent/prompts/system";
 import { loadSkillsBlock } from "@/agent/skills";
 import { formatKnowledgeBlock, retrieveKnowledge } from "@/agent/knowledge";
@@ -47,6 +46,7 @@ let activeTurns = 0;
 const turnWaiters: (() => void)[] = [];
 
 function acquireTurnSlot(signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) return Promise.reject(new AppError("请求已取消", "REQUEST_ABORTED", 499));
   if (activeTurns < MAX_CONCURRENT_TURNS) {
     activeTurns += 1;
     return Promise.resolve();
@@ -77,7 +77,7 @@ function releaseTurnSlot(): void {
 }
 
 // 准备阶段：校验 Key 与归属，用户消息落库并立即刷新活跃时间（断网时侧边栏也要正确排序）。
-// 占用该对话的回合锁；失败时立即释放，成功后由 runAgentReply（或请求中断时由路由）释放。
+// 占用该对话的回合锁；失败时立即释放，成功后只由回复编排finally释放。
 export async function prepareUserTurn(params: {
   conversationId: string;
   shopId: string;
@@ -136,52 +136,7 @@ async function extractTurnMemories(params: AgentReplyParams, text: string, recen
   }
 }
 
-// 超限历史的摘要压缩（PRD 故事 39：上下文超限时自动压缩，保留关键信息）：
-// 把被预算裁掉的旧消息压缩成不超过 200 字的中文摘要，作为一条标注消息放回历史头部；压缩失败则退回未压缩的历史。
-async function buildContextHistory(params: AgentReplyParams, history: TurnHistory): Promise<HistoryItem[]> {
-  if (history.dropped.length === 0) return history.items;
-  try {
-    const keys = await readKeysConfig();
-    const summaryAgent = await createAgent({ systemPrompt: "", messages: [], model: keys.llm.memoryModel || undefined });
-    const generateText: GenerateTextFn = Object.assign(
-      (systemPrompt: string, userPrompt: string, signal?: AbortSignal) =>
-        generateTextOnce({ agent: summaryAgent, systemPrompt, userPrompt, signal }),
-      { modelId: summaryAgent.state.model.id },
-    );
-    const userPrompt = [
-      "请把以下早期对话压缩成不超过 200 字的中文摘要，保留关键信息（店铺、商品、偏好、结论），去掉寒暄与过程：",
-      ...history.dropped.map((item) => `${item.role === "user" ? "卖家" : "助手"}：${escapePromptData(item.content)}`),
-    ].join("\n");
-    const systemPrompt = "你是对话压缩助手，只输出摘要正文，不要任何解释或格式标记。";
-    const summary = (await callWithGenerationAudit({
-      shopId: params.shopId,
-      type: "chat",
-      modelId: generateText.modelId ?? "unknown",
-      prompt: userPrompt,
-      call: () => generateText(systemPrompt, userPrompt, params.signal),
-    })).trim();
-    if (summary === "") return history.items;
-    return [
-      { role: "user", content: `【早期对话摘要】${summary}`, createdAt: history.dropped[0].createdAt },
-      ...history.items,
-    ];
-  } catch (error) {
-    console.error("[chat] 历史压缩失败（继续使用未压缩历史）:", error);
-    return history.items;
-  }
-}
-
-// 执行一轮回复：查历史 → 压缩超限历史 → 跑 Agent → 提取记忆 → 落库，事件经 push 产出；结束回调用于释放回合锁与标记完成。
-async function runReplyTurn(params: AgentReplyParams, push: (event: ChatStreamEvent) => void, onFinish: () => void): Promise<void> {
-  let slotHeld = false;
-  try {
-    await acquireTurnSlot(params.signal);
-    slotHeld = true;
-    const history = await buildContextHistory(params, await getTurnHistory({
-      conversationId: params.conversationId,
-      shopId: params.shopId,
-      before: params.userMessage.createdAt,
-    }));
+async function executeReply(params: AgentReplyParams, push: (event: ChatStreamEvent) => void): Promise<void> {
     const shop = await getShop(params.shopId);
     // 系统提示词注入当前店铺的长期记忆（PRD 故事 40：跨对话记住店铺信息，自动应用），并受条数上限约束。
     const memories = (await listMemories(params.shopId)).slice(-MAX_CONTEXT_MEMORIES);
@@ -193,9 +148,10 @@ async function runReplyTurn(params: AgentReplyParams, push: (event: ChatStreamEv
     const postHistoryContext = knowledgeSections.length > 0
       ? `[knowledge]\n${formatKnowledgeBlock(knowledgeSections)}\n[/knowledge]`
       : undefined;
-    const { text, toolCalls } = await runAgentTurn({
+    const { text, toolCalls, history } = await runAgentTurn({
       systemPrompt: buildSystemPrompt({ name: shop.name, market: shop.market, description: shop.description, memories, skillsBlock }),
-      history,
+      conversationId: params.conversationId,
+      currentMessageId: params.userMessage.id,
       content: params.content,
       shopId: params.shopId,
       postHistoryContext,
@@ -213,6 +169,15 @@ async function runReplyTurn(params: AgentReplyParams, push: (event: ChatStreamEv
       toolCalls,
     });
     push({ type: "done", agentMessage });
+}
+
+// 回合锁只在真正结束时释放，包括预先已取消的请求；取消不能提前放行另一个回合。
+async function runReplyTurn(params: AgentReplyParams, push: (event: ChatStreamEvent) => void, onFinish: () => void): Promise<void> {
+  let slotHeld = false;
+  try {
+    await acquireTurnSlot(params.signal);
+    slotHeld = true;
+    await executeReply(params, push);
   } catch (error) {
     // 只透传 AppError（含 NotFound/Validation 子类）的用户安全消息；未知异常（Prisma/网络等）记服务端日志，前端只给固定提示，不泄露内部细节。
     if (error instanceof AppError) {

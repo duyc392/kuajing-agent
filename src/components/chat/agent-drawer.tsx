@@ -3,91 +3,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { apiRequest } from "@/lib/api-client";
+import { useDrawerConversation } from "./use-drawer-conversation";
 import { useShops } from "@/components/shop/shop-context";
 import ChatPanel, { ChatInput } from "@/components/chat/chat-panel";
 import QuickCommands from "@/components/chat/quick-commands";
 import Loading from "@/components/shared/loading";
 import ErrorMessage from "@/components/shared/error-message";
-import type { ConversationSummary } from "@/types";
-
-// 读取当前店铺最近一次对话（不自动创建）：打开抽屉或切换店铺后重新加载，已有活动对话则不重复加载。
-function useConversationLoad(open: boolean, currentShopId: string | null) {
-  const [conversationId, setConversationId] = useState<string | null>(null);
-  const [boundShopId, setBoundShopId] = useState<string | null>(null);
-  const [error, setError] = useState("");
-  const [reloadCount, setReloadCount] = useState(0);
-
-  useEffect(() => {
-    if (!open || !currentShopId) return;
-    if (conversationId !== null && boundShopId === currentShopId) return;
-    let stale = false;
-    const controller = new AbortController();
-    setError("");
-    apiRequest<ConversationSummary[]>("GET", `/api/conversations?shopId=${currentShopId}`, undefined, controller.signal)
-      .then((list) => {
-        if (stale) return;
-        setConversationId(list[0]?.id ?? null);
-        setBoundShopId(currentShopId);
-      })
-      .catch((e: Error) => {
-        if (!stale) setError(e.message || "对话初始化失败");
-      });
-    return () => {
-      stale = true;
-      controller.abort();
-    };
-  }, [open, currentShopId, conversationId, boundShopId, reloadCount]);
-
-  const resolved = boundShopId === currentShopId;
-  const activeConversationId = currentShopId !== null && resolved ? conversationId : null;
-
-  return {
-    activeConversationId,
-    resolved,
-    error,
-    adopt: (id: string, shopId: string) => {
-      setConversationId(id);
-      setBoundShopId(shopId);
-    },
-    retry: () => {
-      setConversationId(null);
-      setBoundShopId(null);
-      setReloadCount((count) => count + 1);
-    },
-  };
-}
-
-interface PendingSend {
-  conversationId: string;
-  content: string;
-}
-
-// 抽屉对话状态：组合"读取最近对话"与"首次发送才创建"；pending 记录待自动发送的首条消息，按对话 ID 匹配防止发错对话。
-function useDrawerConversation(open: boolean, currentShopId: string | null) {
-  const load = useConversationLoad(open, currentShopId);
-  const [pending, setPending] = useState<PendingSend | null>(null);
-
-  async function startConversation(content: string): Promise<void> {
-    if (!currentShopId) throw new Error("当前没有店铺，无法开始对话");
-    const created = await apiRequest<ConversationSummary>("POST", "/api/conversations", { shopId: currentShopId });
-    load.adopt(created.id, currentShopId);
-    setPending({ conversationId: created.id, content });
-  }
-
-  const autoSendMessage =
-    pending !== null && pending.conversationId === load.activeConversationId ? pending.content : undefined;
-
-  return {
-    activeConversationId: load.activeConversationId,
-    resolved: load.resolved,
-    autoSendMessage,
-    error: load.error,
-    startConversation,
-    clearPendingMessage: () => setPending(null),
-    retry: load.retry,
-  };
-}
+import type { ConversationInitialization } from "@/types";
 
 // 无对话时的欢迎态：复用 ChatInput 与快捷指令，首次发送时创建对话并把首条消息交给 ChatPanel 自动发送。
 function EmptyChat({ onSend }: { onSend: (content: string) => Promise<void> }) {
@@ -133,10 +55,10 @@ interface DrawerContentProps {
   error: string;
   resolved: boolean;
   activeConversationId: string | null;
-  autoSendMessage: string | undefined;
+  initialization?: ConversationInitialization;
   onRetry: () => void;
   onStart: (content: string) => Promise<void>;
-  onTurnComplete: () => void;
+  onConfirmed: () => void;
 }
 
 function DrawerContent(props: DrawerContentProps) {
@@ -146,9 +68,10 @@ function DrawerContent(props: DrawerContentProps) {
   if (props.activeConversationId !== null) {
     return (
       <ChatPanel
+        key={`${props.currentShopId}:${props.activeConversationId}`}
         conversationId={props.activeConversationId}
-        autoSendMessage={props.autoSendMessage}
-        onTurnComplete={props.onTurnComplete}
+        {...props.initialization}
+        onUserMessageConfirmed={props.onConfirmed}
       />
     );
   }
@@ -252,11 +175,11 @@ export default function AgentDrawer() {
           currentShopId={currentShopId}
           error={drawer.error}
           resolved={drawer.resolved}
-          activeConversationId={drawer.activeConversationId}
-          autoSendMessage={drawer.autoSendMessage}
+          activeConversationId={drawer.selection?.id ?? null}
+          initialization={drawer.selection ?? undefined}
           onRetry={drawer.retry}
           onStart={drawer.startConversation}
-          onTurnComplete={drawer.clearPendingMessage}
+          onConfirmed={drawer.confirmFirstMessage}
         />
       </DrawerPanel>
     </>

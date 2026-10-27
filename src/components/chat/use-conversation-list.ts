@@ -1,79 +1,99 @@
-// 用途：复用既有对话列表与新建逻辑，供侧栏和首页使用；首条消息仍交给 ChatPanel。
+// 用途：对话列表、新建与删除；新建显式传空历史，旧对话不传初始化种子。
 "use client";
-
 import { useEffect, useRef, useState } from "react";
 import { apiRequest } from "@/lib/api-client";
-import type { ConversationSummary } from "@/types";
-// 列表拉取：店铺或重载计数变化时重新加载，过期请求作废（stale + 取消信号），响应非数组时抛错走错误态。
-function useConversationListLoader(currentShopId: string | null, reloadCount: number) {
-  const [list, setList] = useState<ConversationSummary[] | null>(null);
-  const [error, setError] = useState("");
+import type { ConversationSummary, SelectConversation } from "@/types";
 
+function useConversationListLoader(shopId: string | null, revision: string) {
+  const [state, setState] = useState<{ shopId: string | null; list: ConversationSummary[] | null; error: string }>({ shopId, list: null, error: "" });
   useEffect(() => {
-    if (!currentShopId) return;
     let stale = false;
     const controller = new AbortController();
-    setList(null);
-    setError("");
-    apiRequest<unknown>("GET", `/api/conversations?shopId=${currentShopId}`, undefined, controller.signal)
+    setState({ shopId, list: null, error: "" });
+    if (shopId) apiRequest<unknown>("GET", `/api/conversations?shopId=${encodeURIComponent(shopId)}`, undefined, controller.signal)
       .then((rows) => {
         if (stale) return;
         if (!Array.isArray(rows)) throw new Error("对话列表数据异常");
-        setList(rows as ConversationSummary[]);
-      })
-      .catch((e: Error) => { if (!stale) setError(e.message || "对话列表加载失败"); });
-    return () => {
-      stale = true;
-      controller.abort();
-    };
-  }, [currentShopId, reloadCount]);
-
-  return { list, error, setError };
+        setState({ shopId, list: rows as ConversationSummary[], error: "" });
+      }).catch((error: unknown) => {
+        if (!stale) setState({ shopId, list: null, error: error instanceof Error ? error.message : "对话列表加载失败" });
+      });
+    return () => { stale = true; controller.abort(); };
+  }, [shopId, revision]);
+  return { list: state.shopId === shopId ? state.list : null, error: state.shopId === shopId ? state.error : "" };
 }
 
-// 对话列表状态集中管理：加载、错误重试、新建（同步锁防连点），Sidebar 只负责组合 UI。
-export function useConversationList(currentShopId: string | null, handleSelect: (id: string, content?: string) => void, refreshSignal = 0) {
-  const lastSignal = useRef(0);
-  const creatingRef = useRef(false);
+function useShopScope(shopId: string | null) {
+  const scope = useRef({ shopId, active: true });
+  if (scope.current.shopId !== shopId) { scope.current.active = false; scope.current = { shopId, active: true }; }
+  useEffect(() => {
+    const current = scope.current;
+    current.active = true;
+    return () => { current.active = false; };
+  }, [shopId]);
+  return scope.current;
+}
+type ShopScope = ReturnType<typeof useShopScope>;
+interface MutationArgs { scope: ShopScope; reload: () => void; fail: (message: string) => void }
+
+function useCreateConversation(args: MutationArgs, select: SelectConversation) {
+  const busy = useRef(false);
   const [creating, setCreating] = useState(false);
-  const [reloadCount, setReloadCount] = useState(0);
-  const { list, error, setError } = useConversationListLoader(currentShopId, reloadCount);
-
-  useEffect(() => {
-    if (refreshSignal === lastSignal.current) return;
-    lastSignal.current = refreshSignal;
-    setReloadCount((count) => count + 1);
-  }, [refreshSignal]);
-
-  const activeShop = useRef(currentShopId);
-  useEffect(() => {
-    activeShop.current = currentShopId;
-    return () => { activeShop.current = null; };
-  }, [currentShopId]);
-
   async function handleCreate(content?: string) {
-    // creatingRef 同步锁：React 状态更新是异步的，同一瞬间连点两次会都读到 creating=false，必须用 ref 立即占位。
-    if (creatingRef.current || !currentShopId) return;
-    creatingRef.current = true;
+    if (busy.current || !args.scope.shopId) return;
+    busy.current = true;
     setCreating(true);
+    args.fail("");
     try {
-      const created = await apiRequest<ConversationSummary>("POST", "/api/conversations", { shopId: currentShopId });
-      if (activeShop.current !== currentShopId) return;
-      setReloadCount((count) => count + 1);
-      handleSelect(created.id, content);
-    } catch (e) {
-      if (activeShop.current === currentShopId) setError(e instanceof Error ? e.message : "新建对话失败");
+      const created = await apiRequest<ConversationSummary>("POST", "/api/conversations", { shopId: args.scope.shopId });
+      if (!args.scope.active) return;
+      args.reload();
+      select(created.id, { initialMessages: [], autoSendMessage: content });
+    } catch (error) {
+      if (args.scope.active) args.fail(error instanceof Error ? error.message : "新建对话失败");
     } finally {
-      creatingRef.current = false;
-      setCreating(false);
+      busy.current = false;
+      if (args.scope.active) setCreating(false);
     }
   }
+  useEffect(() => { setCreating(false); }, [args.scope]);
+  return { creating, handleCreate };
+}
 
-  return {
-    list,
-    error,
-    creating,
-    handleCreate,
-    retry: () => setReloadCount((count) => count + 1),
-  };
+function useDeleteConversation(args: MutationArgs, onDeleted?: (id: string) => void) {
+  const busy = useRef(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  async function handleDelete(id: string) {
+    if (busy.current || !args.scope.shopId) return;
+    busy.current = true;
+    setDeletingId(id);
+    args.fail("");
+    try {
+      await apiRequest<unknown>("DELETE", `/api/conversations/${encodeURIComponent(id)}?shopId=${encodeURIComponent(args.scope.shopId)}`);
+      if (!args.scope.active) return;
+      args.reload();
+      onDeleted?.(id);
+    } catch (error) {
+      if (args.scope.active) args.fail(error instanceof Error ? error.message : "删除对话失败");
+    } finally {
+      busy.current = false;
+      if (args.scope.active) setDeletingId(null);
+    }
+  }
+  useEffect(() => { setDeletingId(null); }, [args.scope]);
+  return { deletingId, handleDelete };
+}
+
+export function useConversationList(shopId: string | null, select: SelectConversation, refreshSignal = 0, onDeleted?: (id: string) => void) {
+  const [reloadCount, setReloadCount] = useState(0);
+  const [mutationError, setMutationError] = useState("");
+  const scope = useShopScope(shopId);
+  const reload = () => setReloadCount((count) => count + 1);
+  const loaded = useConversationListLoader(shopId, `${refreshSignal}:${reloadCount}`);
+  useEffect(() => { setMutationError(""); }, [shopId]);
+  const args = { scope, reload, fail: setMutationError };
+  const create = useCreateConversation(args, select);
+  const remove = useDeleteConversation(args, onDeleted);
+  return { list: loaded.list, error: mutationError || loaded.error, ...create, ...remove,
+    retry: () => { setMutationError(""); reload(); } };
 }

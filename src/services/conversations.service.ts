@@ -1,4 +1,4 @@
-// 用途：对话业务逻辑：按店铺查对话列表（时间倒序）与新建对话；所有查询强制 shopId 过滤，店铺不存在时抛 404。
+// 用途：对话业务逻辑：按店铺查对话列表（时间倒序）、新建与删除对话；所有查询强制 shopId 过滤，店铺不存在时抛 404。
 import type { Conversation } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { NotFoundError } from "@/lib/errors";
@@ -33,4 +33,10 @@ export async function getConversation(query: { id: string; shopId: string }): Pr
   const conversation = await prisma.conversation.findFirst({ where: { id: query.id, shopId: query.shopId } });
   if (!conversation) throw new NotFoundError("对话不存在");
   return conversation;
+}
+
+// 用途：删除对话：id + shopId 双条件原子删除，跨店铺或不存在抛 404；消息经外键级联一并清理。
+export async function deleteConversation(query: { id: string; shopId: string }): Promise<void> {
+  const result = await prisma.conversation.deleteMany({ where: { id: query.id, shopId: query.shopId } });
+  if (result.count === 0) throw new NotFoundError("对话不存在");
 }

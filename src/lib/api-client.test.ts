@@ -27,6 +27,22 @@ test("apiRequest：成功返回 JSON 并带上方法、请求体与 Content-Type
   assert.equal(new Headers(captured?.headers).get("Content-Type"), "application/json");
 });
 
+test("apiRequest：FormData 直接透传，不 JSON 序列化也不设 Content-Type", async () => {
+  let captured: RequestInit | undefined;
+  const mock = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    captured = init;
+    return Response.json({ ok: true });
+  }) as typeof fetch;
+
+  const form = new FormData();
+  form.append("file", new Blob(["png"], { type: "image/png" }), "a.png");
+  const data = await withFetch(mock, () => apiRequest("POST", "/api/images?productId=p1", form));
+  assert.deepEqual(data, { ok: true });
+  assert.ok(captured?.body instanceof FormData, "body 应原样是 FormData");
+  assert.notEqual(captured?.body, JSON.stringify(form));
+  assert.equal(captured?.headers === undefined ? null : new Headers(captured.headers).get("Content-Type"), null);
+});
+
 test("apiRequest：非 2xx 透传服务端中文错误", async () => {
   const mock = (async () => Response.json({ error: "商品不存在" }, { status: 404 })) as typeof fetch;
   await withFetch(mock, async () => {

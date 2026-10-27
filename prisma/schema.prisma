@@ -148,6 +148,12 @@ model Conversation {
   shop      Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
   title     String
   messages  Message[]
+  // 可重建的上下文缓存；原始Message不删除。revision用于shopId隔离的CAS更新。
+  contextSummary          String?
+  summaryThroughMessageId String?
+  summaryThroughAt        DateTime?
+  summaryVersion          Int?
+  summaryRevision         Int       @default(0)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 }

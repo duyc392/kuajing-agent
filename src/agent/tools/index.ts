@@ -19,12 +19,15 @@ import { createProposeSkillTool } from "@/agent/tools/skill";
 import { createLoadSkillTool } from "@/agent/tools/load-skill";
 import { createDatabaseTool } from "@/agent/tools/database";
 import { createSelectionWorkbenchTool } from "@/agent/tools/selection-workbench";
+import { createReadConversationMessageTool, createSearchConversationHistoryTool } from "@/agent/tools/conversation";
 
 export interface AgentToolDeps {
   shopId: string;
+  conversationId?: string;
+  beforeMessageId?: string;
 }
 
-export function buildAgentTools(deps: AgentToolDeps) {
+function intelligenceTools() {
   return [
     // 一、外部情报与数据抓取
     createFetchMarketDataTool(),
@@ -41,6 +44,11 @@ export function buildAgentTools(deps: AgentToolDeps) {
     createComplianceTool(),
     createVerifyCitationsTool(),
     createValidateStoryboardTool(),
+  ];
+}
+
+function workspaceTools(deps: AgentToolDeps) {
+  return [
     // 三、多模态素材生产
     createRenderImageTool(),
     createRunImageWorkflowTool(),
@@ -64,4 +72,12 @@ export function buildAgentTools(deps: AgentToolDeps) {
     createLoadSkillTool(),
     createSelectionWorkbenchTool(),
   ];
+}
+
+export function buildAgentTools(deps: AgentToolDeps) {
+  const history = deps.conversationId && deps.beforeMessageId ? [
+    createSearchConversationHistoryTool({ shopId: deps.shopId, conversationId: deps.conversationId, beforeMessageId: deps.beforeMessageId }),
+    createReadConversationMessageTool({ shopId: deps.shopId, conversationId: deps.conversationId, beforeMessageId: deps.beforeMessageId }),
+  ] : [];
+  return [...intelligenceTools(), ...workspaceTools(deps), ...history];
 }
